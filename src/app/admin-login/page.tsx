@@ -59,8 +59,13 @@ function AdminLoginForm() {
 
       setSubmitting(false);
 
-      if (!result?.ok) {
+      if (result?.error) {
         setFormError("Invalid admin email or password. Please check your credentials.");
+        return;
+      }
+
+      if (!result?.ok) {
+        setFormError("Authentication failed. Please try again.");
         return;
       }
 
