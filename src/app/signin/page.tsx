@@ -78,14 +78,20 @@ function SignInFormContent() {
           onClick={() => signIn("google", { callbackUrl: "/" })}
           className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm font-semibold transition-colors hover:bg-surface-soft cursor-pointer"
         >
-          Continue with Google
+          <div className="flex items-center justify-center gap-3">
+            <Image src="/images/google.svg" alt="Google logo" width={20} height={20} />
+            <span>Continue with Google</span>
+          </div>
         </button>
         <button
           type="button"
           onClick={() => signIn("facebook", { callbackUrl: "/" })}
           className="w-full rounded-xl bg-[#1877F2] px-4 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 cursor-pointer"
         >
-          Continue with Facebook
+          <div className="flex items-center justify-center gap-3">
+            <Image src="/images/facebook.png" alt="Facebook logo" width={20} height={20} />
+            <span>Continue with Facebook</span>
+          </div>
         </button>
       </div>
 

@@ -88,12 +88,30 @@ export function ChatbotWidget() {
 
       if (!response.ok) {
         const reason = data.error || "Assistant is temporarily unavailable.";
-        throw new Error(reason);
+        console.error("Chat response error:", reason, data);
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content:
+              "Sorry, the assistant is temporarily unavailable right now. Please use the 'Chat with Admin' button below or contact support@bushbuyer.com.",
+          },
+        ]);
+        return;
       }
 
       const assistantText = data.response || data.reply;
       if (!assistantText || typeof assistantText !== "string") {
-        throw new Error("Assistant response was empty.");
+        console.error("Chat response invalid:", data);
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content:
+              "Sorry, I couldn't understand the assistant response. Please try again or use the direct admin chat button.",
+          },
+        ]);
+        return;
       }
 
       setMessages((prev) => [
