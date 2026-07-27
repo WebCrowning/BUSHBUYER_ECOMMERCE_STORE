@@ -53,6 +53,7 @@ function SignInFormContent() {
           height={120}
           className="h-32 w-32 rounded-full object-cover"
           priority
+          unoptimized
         />
       </div>
       <p className="section-kicker text-center">Authentication</p>
@@ -79,7 +80,7 @@ function SignInFormContent() {
           className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm font-semibold transition-colors hover:bg-surface-soft cursor-pointer"
         >
           <div className="flex items-center justify-center gap-3">
-            <Image src="/images/google.svg" alt="Google logo" width={20} height={20} />
+            <Image src="/images/google.svg" alt="Google logo" width={20} height={20} unoptimized />
             <span>Continue with Google</span>
           </div>
         </button>
@@ -89,7 +90,7 @@ function SignInFormContent() {
           className="w-full rounded-xl bg-[#1877F2] px-4 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 cursor-pointer"
         >
           <div className="flex items-center justify-center gap-3">
-            <Image src="/images/facebook.png" alt="Facebook logo" width={20} height={20} />
+            <Image src="/images/facebook.png" alt="Facebook logo" width={20} height={20} unoptimized />
             <span>Continue with Facebook</span>
           </div>
         </button>
