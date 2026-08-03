@@ -1,4 +1,5 @@
 import mysql from "mysql2/promise";
+import { createHash } from "crypto";
 import { env } from "@/lib/env";
 import { defaultPageContent } from "@/lib/page-content";
 
@@ -308,6 +309,29 @@ async function ensurePackageSchema() {
         await pool.execute(
           "ALTER TABLE users ADD COLUMN password_hash VARCHAR(255) NULL",
         );
+      }
+
+      // Ensure at least one admin user exists in users table with a valid password_hash
+      const [adminRows] = await pool.query<mysql.RowDataPacket[]>(
+        "SELECT id, password_hash FROM users WHERE role IN ('admin', 'sub_admin') LIMIT 1",
+      );
+
+      const defaultAdminHash = createHash("sha256").update("admin123").digest("hex");
+
+      if (adminRows.length === 0) {
+        await pool.execute(
+          `INSERT INTO users (name, email, provider, role, password_hash)
+           VALUES ('Admin', 'admin@bushbuyer.com', 'credentials', 'admin', ?)`,
+          [defaultAdminHash],
+        );
+      } else {
+        const firstAdmin = adminRows[0];
+        if (!firstAdmin.password_hash) {
+          await pool.execute(
+            "UPDATE users SET password_hash = ? WHERE id = ?",
+            [defaultAdminHash, firstAdmin.id],
+          );
+        }
       }
     })().catch((error) => {
       console.warn("Schema initialization warning (non-fatal):", error);

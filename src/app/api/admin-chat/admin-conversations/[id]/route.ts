@@ -26,8 +26,8 @@ export async function GET(_request: Request, { params }: Params) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const allowedEmail = (process.env.ADMIN_LOGIN_EMAIL ?? "").trim().toLowerCase();
-    if (!allowedEmail || session.user.email.toLowerCase() !== allowedEmail) {
+    const userRole = (session.user as { role?: string }).role;
+    if (userRole !== "admin" && userRole !== "sub_admin") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 

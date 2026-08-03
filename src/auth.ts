@@ -16,24 +16,34 @@ type AuthUserWithRole = {
 
 const isProduction = process.env.NODE_ENV === "production";
 const authSecret = process.env.NEXTAUTH_SECRET ?? "";
-const adminEmail = (process.env.ADMIN_LOGIN_EMAIL ?? "").trim().toLowerCase();
-const adminPasswordHash = (process.env.ADMIN_LOGIN_PASSWORD_HASH ?? "").trim();
 const enableSocialAuth = (process.env.ENABLE_SOCIAL_LOGIN ?? "false").toLowerCase() === "true";
 
 function comparePasswordHash(password: string, storedHash: string) {
-  const incomingHash = createHash("sha256").update(password).digest("hex");
+  if (!password || !storedHash) return false;
+  const cleanPassword = password.trim();
+  const cleanHash = storedHash.trim();
+
+  // Direct plain text match
+  if (cleanPassword === cleanHash) {
+    return true;
+  }
+
+  // SHA-256 hex match
+  const incomingHash = createHash("sha256").update(cleanPassword).digest("hex");
   const a = Buffer.from(incomingHash);
-  const b = Buffer.from(storedHash);
+  const b = Buffer.from(cleanHash);
 
-  if (a.length !== b.length) {
-    return false;
+  if (a.length === b.length) {
+    try {
+      if (timingSafeEqual(a, b)) {
+        return true;
+      }
+    } catch {
+      // Fallback
+    }
   }
 
-  try {
-    return timingSafeEqual(a, b);
-  } catch {
-    return false;
-  }
+  return false;
 }
 
 const providers: any[] = [
@@ -51,23 +61,6 @@ const providers: any[] = [
         return null;
       }
 
-      // Check primary env admin first
-      if (adminEmail && adminPasswordHash && email === adminEmail) {
-        try {
-          if (comparePasswordHash(password, adminPasswordHash)) {
-            return {
-              id: email,
-              name: "Admin",
-              email,
-              image: null,
-              role: "admin",
-            };
-          }
-        } catch (error) {
-          console.error("Env Admin Auth authorize error:", error);
-        }
-      }
-
       // Check DB users table for admin or sub_admin
       try {
         const users = await query<
@@ -83,14 +76,15 @@ const providers: any[] = [
           [email],
         );
 
-        if (users.length > 0 && users[0].password_hash) {
-          if (comparePasswordHash(password, users[0].password_hash)) {
+        if (users.length > 0) {
+          const user = users[0];
+          if (user.password_hash && comparePasswordHash(password, user.password_hash)) {
             return {
-              id: String(users[0].id),
-              name: users[0].name || "Admin",
-              email: users[0].email,
+              id: String(user.id),
+              name: user.name || "Admin",
+              email: user.email,
               image: null,
-              role: users[0].role || "admin",
+              role: user.role || "admin",
             };
           }
         }
@@ -169,22 +163,26 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
     async jwt({ token, user }) {
       try {
-        const allowedEmail = (process.env.ADMIN_LOGIN_EMAIL ?? "").trim().toLowerCase();
-
         if (user) {
           const authUser = user as AuthUserWithRole;
-          token.role = authUser.role || (token.email?.toLowerCase() === allowedEmail ? "admin" : "user");
+          token.role = authUser.role || "user";
           token.id = authUser.id ?? token.id;
         }
 
         if (token.email) {
-          const rows = await query<DbUser[]>("SELECT id FROM users WHERE email = ? LIMIT 1", [token.email]);
+          const rows = await query<Array<{ id: number; role: string }>>(
+            "SELECT id, role FROM users WHERE LOWER(email) = ? LIMIT 1",
+            [token.email.toLowerCase()],
+          );
           if (rows[0]) {
             token.id = String(rows[0].id);
+            if (rows[0].role) {
+              token.role = rows[0].role;
+            }
           }
         }
 
-        token.role = token.role ?? (token.email === allowedEmail ? "admin" : "user");
+        token.role = token.role ?? "user";
         return token;
       } catch (error) {
         console.error("JWT callback error:", error);

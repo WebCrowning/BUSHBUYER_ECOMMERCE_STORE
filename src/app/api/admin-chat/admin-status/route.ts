@@ -9,9 +9,8 @@ export async function GET() {
       `SELECT u.id, u.name, u.email, COALESCE(aos.status, 'offline') as status
        FROM users u
        LEFT JOIN admin_online_status aos ON u.id = aos.user_id
-       WHERE u.email = ?
+       WHERE u.role IN ('admin', 'sub_admin')
        ORDER BY u.name`,
-      [(process.env.ADMIN_LOGIN_EMAIL ?? "").trim().toLowerCase()],
     );
 
     return NextResponse.json({ admins });
@@ -39,8 +38,8 @@ export async function POST(request: Request) {
     }
 
     // Get current user
-    const currentUser = await query<Array<{ id: number }>>(
-      "SELECT id FROM users WHERE email = ?",
+    const currentUser = await query<Array<{ id: number; role: string }>>(
+      "SELECT id, role FROM users WHERE email = ?",
       [session.user.email],
     );
 
@@ -49,8 +48,8 @@ export async function POST(request: Request) {
     }
 
     const userId = currentUser[0].id;
-    const allowedEmail = (process.env.ADMIN_LOGIN_EMAIL ?? "").trim().toLowerCase();
-    if (!allowedEmail || session.user.email.toLowerCase() !== allowedEmail) {
+    const userRole = currentUser[0].role;
+    if (userRole !== "admin" && userRole !== "sub_admin") {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 403 },

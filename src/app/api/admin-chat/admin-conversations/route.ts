@@ -25,8 +25,8 @@ export async function GET(request: Request) {
     }
 
     // Get current user
-    const currentUser = await query<Array<{ id: number }>>(
-      "SELECT id FROM users WHERE email = ?",
+    const currentUser = await query<Array<{ id: number; role: string }>>(
+      "SELECT id, role FROM users WHERE email = ?",
       [session.user.email],
     );
 
@@ -35,8 +35,8 @@ export async function GET(request: Request) {
     }
 
     const userId = currentUser[0].id;
-    const allowedEmail = (process.env.ADMIN_LOGIN_EMAIL ?? "").trim().toLowerCase();
-    if (!allowedEmail || session.user.email.toLowerCase() !== allowedEmail) {
+    const userRole = currentUser[0].role;
+    if (userRole !== "admin" && userRole !== "sub_admin") {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 403 },

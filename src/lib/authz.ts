@@ -26,7 +26,7 @@ export function isAdminEmail(email?: string | null) {
 
 function isAdminSession(session: AdminGuardSession) {
   const role = session?.user?.role;
-  if (role === "admin") {
+  if (role === "admin" || role === "sub_admin") {
     return true;
   }
 
