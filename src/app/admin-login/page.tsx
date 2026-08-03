@@ -44,6 +44,37 @@ function AdminLoginForm() {
     }
   }, [status, session, router]);
 
+  const urlError = getUrlErrorMessage(errorParam);
+  const displayError = formError
+    ? { title: "Authentication Failed", message: formError }
+    : urlError;
+
+  function getUrlErrorMessage(param: string | null) {
+    if (!param) return null;
+    if (param === "forbidden") {
+      return {
+        title: "Access Forbidden",
+        message: "Your account is not authorized for administrative access. Please sign in with an admin account.",
+      };
+    }
+    if (param === "CredentialsSignin" || param === "Credentials" || param === "credentials") {
+      return {
+        title: "Authentication Failed",
+        message: "Invalid admin email or password. Please check your credentials and try again.",
+      };
+    }
+    if (param === "AccessDenied") {
+      return {
+        title: "Access Denied",
+        message: "You do not have permission to access the administrative portal.",
+      };
+    }
+    return {
+      title: "Authentication Error",
+      message: "Authentication failed. Please check your admin credentials and try again.",
+    };
+  }
+
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitting(true);
@@ -65,14 +96,14 @@ function AdminLoginForm() {
       }
 
       if (!result?.ok) {
-        setFormError("Authentication failed. Please try again.");
+        setFormError("Invalid admin email or password. Please check your credentials.");
         return;
       }
 
-      router.push("/admin");
+      window.location.href = "/admin";
     } catch (err) {
       setSubmitting(false);
-      setFormError("An unexpected authentication error occurred. Please try again.");
+      setFormError("Invalid admin email or password. Please check your credentials.");
     }
   }
 
@@ -105,24 +136,16 @@ function AdminLoginForm() {
         </p>
       </div>
 
-      {/* URL Parameter Error Alert */}
-      {errorParam === "forbidden" && (
+      {/* Error Alert Display */}
+      {displayError && (
         <div className="mt-6 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
           <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-600 dark:text-red-400" />
           <div>
-            <p className="font-semibold">Access Forbidden</p>
+            <p className="font-semibold">{displayError.title}</p>
             <p className="mt-0.5 text-xs text-red-700/90 dark:text-red-400">
-              Your account is not authorized for administrative access. Please sign in with an admin account.
+              {displayError.message}
             </p>
           </div>
-        </div>
-      )}
-
-      {/* Form Error Alert */}
-      {formError && (
-        <div className="mt-6 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
-          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-600 dark:text-red-400" />
-          <p className="text-sm font-medium">{formError}</p>
         </div>
       )}
 
@@ -141,7 +164,10 @@ function AdminLoginForm() {
               id="admin-email"
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                if (formError) setFormError(null);
+              }}
               placeholder="admin@bushbuyer.com"
               required
               autoComplete="email"
@@ -163,7 +189,10 @@ function AdminLoginForm() {
               id="admin-password"
               type={showPassword ? "text" : "password"}
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                if (formError) setFormError(null);
+              }}
               placeholder="••••••••••••"
               required
               autoComplete="current-password"
