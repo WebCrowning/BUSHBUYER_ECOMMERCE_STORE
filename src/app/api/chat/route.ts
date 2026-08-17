@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { env } from "@/lib/env";
 import { query } from "@/lib/db";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { getClientIp } from "@/lib/request-security";
 
 type OpenRouterMessage = {
   role: "user" | "assistant" | "system";
@@ -110,11 +112,32 @@ ${productContext}${faqContext}`;
 }
 
 export async function POST(request: Request) {
+  // Rate limit: 20 messages per minute per IP to prevent API cost abuse
+  const clientIp = getClientIp(request);
+  const rl = checkRateLimit({ key: `chat:${clientIp}`, windowMs: 60_000, maxRequests: 20 });
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please slow down." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSeconds) } }
+    );
+  }
+
   const payload = (await request.json().catch(() => null)) as ChatRequest | null;
 
   if (!payload?.message) {
     return NextResponse.json({ error: "Message is required" }, { status: 400 });
   }
+
+  // Cap message length to prevent prompt-stuffing attacks
+  const message = String(payload.message).slice(0, 1000);
+
+  // Cap conversation history depth and content length
+  const safeHistory = Array.isArray(payload.conversationHistory)
+    ? payload.conversationHistory
+        .slice(-10) // max 10 prior messages
+        .filter((m) => m.role === "user" || m.role === "assistant")
+        .map((m) => ({ role: m.role, content: String(m.content).slice(0, 500) }))
+    : [];
 
   const apiKey = env.openrouterApiKey?.trim();
 
@@ -148,22 +171,14 @@ export async function POST(request: Request) {
     ];
 
     // Add conversation history if provided
-    if (payload.conversationHistory && Array.isArray(payload.conversationHistory)) {
-      for (const msg of payload.conversationHistory) {
-        if (msg.role === "user" || msg.role === "assistant") {
-          messages.push({
-            role: msg.role as "user" | "assistant",
-            content: msg.content,
-          });
-        }
+    if (safeHistory.length > 0) {
+      for (const msg of safeHistory) {
+        messages.push({ role: msg.role as "user" | "assistant", content: msg.content });
       }
     }
 
     // Add current user message
-    messages.push({
-      role: "user",
-      content: payload.message,
-    });
+    messages.push({ role: "user", content: message });
 
     // Call OpenRouter API
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {

@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { query } from "@/lib/db";
-import { isAdminEmail } from "@/lib/authz";
 
 interface BlockResponse {
   message: string;
@@ -25,8 +24,12 @@ export async function POST(request: Request) {
 
     const sessionRole = (session.user as { role?: string }).role;
 
-    // Check if user is admin from session or email config
-    const isAdmin = sessionRole === "admin" || isAdminEmail(session.user.email);
+    // Check if user is admin from MySQL database session role
+    const isAdmin =
+      sessionRole === "admin" ||
+      sessionRole === "sub_admin" ||
+      sessionRole === "super_admin" ||
+      sessionRole === "platform_admin";
     
     if (!isAdmin) {
       return NextResponse.json(
@@ -111,8 +114,12 @@ export async function DELETE(request: Request) {
 
     const sessionRole = (session.user as { role?: string }).role;
 
-    // Check if user is admin from session or email config
-    const isAdmin = sessionRole === "admin" || isAdminEmail(session.user.email);
+    // Check if user is admin from MySQL database session role
+    const isAdmin =
+      sessionRole === "admin" ||
+      sessionRole === "sub_admin" ||
+      sessionRole === "super_admin" ||
+      sessionRole === "platform_admin";
     
     if (!isAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });

@@ -8,6 +8,9 @@ import { query } from "@/lib/db";
 import { formatCurrency, toId } from "@/lib/utils";
 import type { Product } from "@/types";
 
+import { ShareModal } from "@/components/share-modal";
+import { StoreAttributor } from "@/components/store-attributor";
+
 export const dynamic = "force-dynamic";
 
 type Props = {
@@ -22,8 +25,8 @@ export default async function ProductDetailsPage({ params }: Props) {
     notFound();
   }
 
-  const rows = await query<Product[]>(
-    "SELECT id, name, price, transport_fee AS transportFee, image, image_zoom AS imageZoom, description, featured, category, package_name AS packageName, unit_type AS unitType, unit_value AS unitValue, stock_packages AS stockPackages FROM products WHERE id = ? LIMIT 1",
+  const rows = await query<(Product & { store_id?: number })[]>(
+    "SELECT id, name, price, transport_fee AS transportFee, image, image_zoom AS imageZoom, description, featured, category, package_name AS packageName, unit_type AS unitType, unit_value AS unitValue, stock_packages AS stockPackages, store_id FROM products WHERE id = ? LIMIT 1",
     [productId],
   );
 
@@ -33,15 +36,19 @@ export default async function ProductDetailsPage({ params }: Props) {
   }
 
   const zoom = Math.max(80, Math.min(180, Number(product.imageZoom ?? 100)));
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL || "http://localhost:3000";
+  const productUrl = `${siteUrl}/products/${product.id}`;
 
   return (
     <div className="min-h-screen">
+      {product.store_id ? <StoreAttributor storeId={product.store_id} /> : null}
       <SiteHeader />
       <main className="container-shell py-10">
-        <div className="mb-5 text-sm">
+        <div className="mb-5 flex items-center justify-between text-sm">
           <Link href="/products" className="font-semibold text-brand hover:text-brand-deep">
             Back to products
           </Link>
+          <ShareModal title={product.name} url={productUrl} description={product.description || ""} triggerLabel="Share Product" />
         </div>
 
         <div className="glass-card grid gap-6 rounded-3xl p-6 md:grid-cols-2 md:p-8">

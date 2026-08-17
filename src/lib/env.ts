@@ -22,6 +22,12 @@ export const env = {
     .filter(Boolean),
   adminPhone1: process.env.ADMIN_PHONE_1 ?? "",
   adminPhone2: process.env.ADMIN_PHONE_2 ?? "",
+  /** Public site URL used in emails and share links. Falls back to NEXTAUTH_URL then localhost. */
+  siteUrl: (
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.NEXTAUTH_URL ||
+    "http://localhost:3000"
+  ).replace(/\/$/, ""),
 };
 
 export function getRequiredEnv(name: string, value: string) {

@@ -1,5 +1,3 @@
-import type { NextConfig } from "next";
-
 const contentSecurityPolicy = [
   "default-src 'self'",
   "base-uri 'self'",
@@ -14,7 +12,8 @@ const contentSecurityPolicy = [
   "form-action 'self' https://www.paypal.com https://www.sandbox.paypal.com",
 ].join("; ");
 
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   poweredByHeader: false,
 
   // Image optimization

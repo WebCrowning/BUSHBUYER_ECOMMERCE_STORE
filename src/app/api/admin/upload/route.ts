@@ -2,13 +2,13 @@ import { randomUUID } from "crypto";
 import { mkdir, readdir, writeFile } from "fs/promises";
 import path from "path";
 import { NextResponse } from "next/server";
-import { requireAdminApi } from "@/lib/authz";
+import { requireStoreOrAdminApi } from "@/lib/authz";
 
 const MAX_SIZE = 5 * 1024 * 1024;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 export async function GET() {
-  const access = await requireAdminApi();
+  const access = await requireStoreOrAdminApi();
   if ("error" in access) {
     return NextResponse.json({ error: access.error }, { status: access.status });
   }
@@ -33,7 +33,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const access = await requireAdminApi();
+  const access = await requireStoreOrAdminApi();
   if ("error" in access) {
     return NextResponse.json({ error: access.error }, { status: access.status });
   }

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
-import { requireAdminApi } from "@/lib/authz";
+import { requireStoreOrAdminApi } from "@/lib/authz";
 
 type InventoryRow = {
   id: number;
@@ -23,12 +23,19 @@ type SummaryRow = {
 };
 
 export async function GET() {
-  const access = await requireAdminApi();
+  const access = await requireStoreOrAdminApi();
   if ("error" in access) {
     return NextResponse.json({ error: access.error }, { status: access.status });
   }
 
   try {
+    const storeFilter = !access.isSuperAdmin
+      ? "WHERE store_id = ?"
+      : "";
+    const params = !access.isSuperAdmin && access.primaryStoreId
+      ? [access.primaryStoreId]
+      : [];
+
     const [summaryRows, products] = await Promise.all([
       query<SummaryRow[]>(
         `SELECT
@@ -37,7 +44,8 @@ export async function GET() {
            SUM(CASE WHEN stock_packages > 0 AND stock_packages <= 5 THEN 1 ELSE 0 END) AS lowStockProducts,
            SUM(CASE WHEN stock_packages = 0 THEN 1 ELSE 0 END) AS outOfStockProducts,
            COALESCE(SUM(stock_packages), 0) AS totalPackagesAvailable
-         FROM products`,
+         FROM products ${storeFilter}`,
+        params,
       ),
       query<InventoryRow[]>(
         `SELECT
@@ -51,7 +59,9 @@ export async function GET() {
            unit_value AS unitValue,
            featured
          FROM products
+         ${storeFilter}
          ORDER BY stock_packages ASC, featured DESC, created_at DESC`,
+        params,
       ),
     ]);
 

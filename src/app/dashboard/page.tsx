@@ -6,6 +6,7 @@ import { SiteHeader } from "@/components/site-header";
 import { OrderStatusBadge } from "@/components/order-status-badge";
 import { requireUserPage } from "@/lib/authz";
 import { query } from "@/lib/db";
+import { StoreRepository } from "@/repositories/store.repository";
 import { formatCurrency } from "@/lib/utils";
 import type { Order } from "@/types";
 
@@ -26,6 +27,7 @@ import {
   Mail,
   Shield,
   Settings,
+  Store,
 } from "lucide-react";
 
 type UserProfileRow = {
@@ -50,12 +52,13 @@ export default async function CustomerDashboardPage() {
 
   const userId = Number(session.user.id);
 
-  const [orders, profileRows] = await Promise.all([
+  const [orders, profileRows, userStores] = await Promise.all([
     query<Order[]>("SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC", [userId]),
     query<UserProfileRow[]>(
       "SELECT id, name, email, created_at FROM users WHERE id = ? LIMIT 1",
       [userId],
     ),
+    StoreRepository.getUserStores(userId),
   ]);
 
   const profile = profileRows[0];
@@ -72,19 +75,34 @@ export default async function CustomerDashboardPage() {
   }
 
   const totalOrders = orders.length;
-  const paidOrders = orders.filter((o) => o.status === "Paid" || o.status === "Shipped" || o.status === "Delivered").length;
-  const activeOrders = orders.filter((o) => o.status !== "Delivered").length;
+  const paidOrders = orders.filter((o) => {
+    const s = (o as unknown as Record<string, unknown>).order_status as string ?? o.status ?? "";
+    return s === "Paid" || s === "Payment Confirmed" || s === "Shipped" || s === "Delivered" || s === "Completed" || s === "In Transit" || s === "Out for Delivery";
+  }).length;
+  const activeOrders = orders.filter((o) => {
+    const s = (o as unknown as Record<string, unknown>).order_status as string ?? o.status ?? "";
+    return s !== "Delivered" && s !== "Completed";
+  }).length;
   const totalSpent = orders
-    .filter((o) => o.status === "Paid" || o.status === "Shipped" || o.status === "Delivered")
+    .filter((o) => {
+      const s = (o as unknown as Record<string, unknown>).order_status as string ?? o.status ?? "";
+      return s === "Paid" || s === "Payment Confirmed" || s === "Shipped" || s === "Delivered" || s === "Completed" || s === "In Transit" || s === "Out for Delivery";
+    })
     .reduce((sum, o) => sum + Number(o.total_price), 0);
 
   const paymentHistory = orders
-    .filter((o) => !!o.payment_id)
+    .filter((o) => !!(o as unknown as Record<string, unknown>).paypal_order_id || !!(o as unknown as Record<string, unknown>).paypal_transaction_id)
     .slice(0, 8);
+
+  const paymentRef = (o: Order) => {
+    const raw = o as unknown as Record<string, unknown>;
+    const ref = (raw.paypal_transaction_id as string) || (raw.paypal_order_id as string) || "";
+    return ref ? ref.substring(0, 16) + "…" : "—";
+  };
 
   const recentOrders = orders.slice(0, 5);
 
-  const accountNavItems = [
+  const accountNavItemsBase = [
     {
       href: "/dashboard",
       label: "Dashboard Home",
@@ -135,6 +153,18 @@ export default async function CustomerDashboardPage() {
       active: false,
     },
   ];
+
+  const accountNavItems = [...accountNavItemsBase];
+  if (userStores && userStores.length > 0) {
+    const primary = userStores[0];
+    accountNavItems.unshift({
+      href: "/seller/dashboard",
+      label: "Seller Portal",
+      helper: primary?.name ? `Manage ${primary.name}` : "Manage your store",
+      icon: Store,
+      active: false,
+    });
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-brand/5 to-transparent">
@@ -394,7 +424,7 @@ export default async function CustomerDashboardPage() {
                       {paymentHistory.map((order) => (
                         <tr key={order.id} className="border-b border-border/30 transition-colors hover:bg-surface/50">
                           <td className="py-4 pr-4 font-semibold text-foreground/80">{order.public_order_id}</td>
-                          <td className="py-4 pr-4 text-xs font-mono text-foreground/60">{order.payment_id?.substring(0, 16)}...</td>
+                          <td className="py-4 pr-4 text-xs font-mono text-foreground/60">{paymentRef(order)}</td>
                           <td className="py-4 pr-4"><OrderStatusBadge status={order.status} /></td>
                           <td className="py-4 pr-4 font-bold text-brand-deep">{formatCurrency(Number(order.total_price), "USD")}</td>
                           <td className="py-4 text-foreground/60">{new Date(order.created_at).toLocaleDateString()}</td>

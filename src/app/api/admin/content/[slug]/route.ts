@@ -2,6 +2,30 @@ import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/authz";
 import { query } from "@/lib/db";
 import { defaultPageContent, isPageSlug, pageTitleFromSlug } from "@/lib/page-content";
+import sanitizeHtml from "sanitize-html";
+
+/** Allowed HTML for CMS pages — rich content subset, no scripts or event handlers */
+const CMS_SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
+  allowedTags: [
+    "h1","h2","h3","h4","h5","h6","p","br","hr","strong","em","u","s","b","i",
+    "ul","ol","li","blockquote","pre","code","a","img",
+    "table","thead","tbody","tr","th","td",
+    "div","span","section","article","aside","figure","figcaption",
+  ],
+  allowedAttributes: {
+    a: ["href", "title", "target", "rel"],
+    img: ["src", "alt", "width", "height", "loading"],
+    "*": ["class", "id"],
+  },
+  allowedSchemes: ["https", "http", "mailto"],
+  // Strip event handlers, javascript: hrefs, and data: URLs
+  allowedSchemesByTag: {
+    img: ["https", "http", "data"],
+    a: ["https", "http", "mailto"],
+  },
+  disallowedTagsMode: "discard",
+  enforceHtmlBoundary: false,
+};
 
 type Params = {
   params: Promise<{ slug: string }>;
@@ -80,11 +104,14 @@ export async function PUT(request: Request, { params }: Params) {
     | null;
 
   const title = payload?.title?.trim() ?? "";
-  const contentHtml = payload?.contentHtml?.trim() ?? "";
+  const rawHtml = payload?.contentHtml?.trim() ?? "";
 
-  if (!title || !contentHtml) {
+  if (!title || !rawHtml) {
     return NextResponse.json({ error: "Title and content are required" }, { status: 400 });
   }
+
+  // Sanitize HTML before storage — strips scripts, event handlers, javascript: URIs
+  const contentHtml = sanitizeHtml(rawHtml, CMS_SANITIZE_OPTIONS);
 
   try {
     const updatedBy = access.session.user?.email ?? null;

@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { toId } from "@/lib/utils";
-import { requireAdminApi } from "@/lib/authz";
+import { requireStoreOrAdminApi } from "@/lib/authz";
 
 type Params = {
   params: Promise<{ id: string }>;
 };
 
 export async function PATCH(request: Request, { params }: Params) {
-  const access = await requireAdminApi();
+  const access = await requireStoreOrAdminApi();
   if ("error" in access) {
     return NextResponse.json({ error: access.error }, { status: access.status });
   }
@@ -17,6 +17,17 @@ export async function PATCH(request: Request, { params }: Params) {
   const productId = toId(id);
   if (!productId) {
     return NextResponse.json({ error: "Invalid product id" }, { status: 400 });
+  }
+
+  // For non-super admins, verify the product belongs to their store and is not global index catalog (0)
+  if (!access.isSuperAdmin) {
+    const existing = await query<Array<{ store_id: number }>>(
+      "SELECT store_id FROM products WHERE id = ?",
+      [productId]
+    );
+    if (!existing.length || existing[0].store_id === 0 || !access.userStoreIds.includes(existing[0].store_id)) {
+      return NextResponse.json({ error: "Forbidden: Store roles can only manage items in their specified store" }, { status: 403 });
+    }
   }
 
   const payload = (await request.json().catch(() => null)) as

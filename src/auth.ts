@@ -1,124 +1,108 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
+import bcrypt from "bcryptjs";
 import Facebook from "next-auth/providers/facebook";
 import Google from "next-auth/providers/google";
-import { createHash, timingSafeEqual } from "crypto";
-import { query } from "@/lib/db";
+import { UserRepository } from "@/repositories/user.repository";
+import { StoreRepository } from "@/repositories/store.repository";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { SystemRole } from "@/types/marketplace";
 
-type DbUser = {
-  id: number;
-};
-
-type AuthUserWithRole = {
-  id?: string;
-  role?: string;
-};
-
-const isProduction = process.env.NODE_ENV === "production";
 const authSecret = process.env.NEXTAUTH_SECRET ?? "";
-const enableSocialAuth = (process.env.ENABLE_SOCIAL_LOGIN ?? "false").toLowerCase() === "true";
+const isProduction = process.env.NODE_ENV === "production";
 
-function comparePasswordHash(password: string, storedHash: string) {
-  if (!password || !storedHash) return false;
-  const cleanPassword = password.trim();
-  const cleanHash = storedHash.trim();
-
-  // Direct plain text match
-  if (cleanPassword === cleanHash) {
-    return true;
-  }
-
-  // SHA-256 hex match
-  const incomingHash = createHash("sha256").update(cleanPassword).digest("hex");
-  const a = Buffer.from(incomingHash);
-  const b = Buffer.from(cleanHash);
-
-  if (a.length === b.length) {
-    try {
-      if (timingSafeEqual(a, b)) {
-        return true;
-      }
-    } catch {
-      // Fallback
-    }
-  }
-
-  return false;
+if (isProduction && !authSecret) {
+  throw new Error("NEXTAUTH_SECRET must be set in production");
 }
 
 const providers: any[] = [
   Credentials({
-    name: "Email & Password",
+    name: "Admin Credentials",
     credentials: {
       email: { label: "Email", type: "email" },
       password: { label: "Password", type: "password" },
     },
     async authorize(credentials) {
-      const email = String(credentials?.email ?? "").trim().toLowerCase();
-      const password = String(credentials?.password ?? "");
+      if (!credentials?.email || !credentials?.password) return null;
 
-      if (!email || !password) {
+      const emailStr = (credentials.email as string).toLowerCase().trim();
+      const submittedPassword = credentials.password as string;
+
+      // ── Rate-limit login attempts per email (10 per 15 min) ──────────────
+      const rl = checkRateLimit({
+        key: `admin-login:${emailStr}`,
+        windowMs: 15 * 60 * 1000,
+        maxRequests: 10,
+      });
+      if (!rl.allowed) {
+        // Return null — NextAuth treats null as invalid credentials
+        console.warn(`[Auth] Login rate limit hit for: ${emailStr}`);
         return null;
       }
 
-      // Check DB users table for admin or sub_admin
-      try {
-        const users = await query<
-          Array<{
-            id: number;
-            name: string;
-            email: string;
-            role: string;
-            password_hash?: string | null;
-          }>
-        >(
-          "SELECT id, name, email, role, password_hash FROM users WHERE LOWER(email) = ? AND role IN ('admin', 'sub_admin') LIMIT 1",
-          [email],
-        );
+      // Look up user with password hash from the database
+      const dbUser = await UserRepository.findByEmailWithPassword(emailStr);
 
-        if (users.length > 0) {
-          const user = users[0];
-          if (user.password_hash && comparePasswordHash(password, user.password_hash)) {
-            return {
-              id: String(user.id),
-              name: user.name || "Admin",
-              email: user.email,
-              image: null,
-              role: user.role || "admin",
-            };
-          }
-        }
-      } catch (error) {
-        console.error("DB Admin Auth authorize error:", error);
+      if (!dbUser) return null;
+
+      // Only allow admin roles
+      const allowedRoles = ["admin", "sub_admin", "super_admin", "platform_admin"];
+      if (!allowedRoles.includes(dbUser.role)) return null;
+
+      // Check if user is blocked
+      if (dbUser.is_blocked) return null;
+
+      // Verify strictly against MySQL database password_hash
+      if (!dbUser.password_hash) return null;
+
+      // Support both bcrypt hashes ($2b$...) and legacy SHA-256 hashes (64-char hex).
+      // SHA-256 support is kept for backward-compat during migration; use
+      // scripts/set-admin-password.js to upgrade all hashes to bcrypt.
+      const storedHash = dbUser.password_hash;
+      let passwordValid = false;
+
+      if (storedHash.startsWith("$2b$") || storedHash.startsWith("$2a$")) {
+        // bcrypt hash — use constant-time comparison
+        passwordValid = await bcrypt.compare(submittedPassword, storedHash);
+      } else if (/^[0-9a-f]{64}$/i.test(storedHash)) {
+        // Legacy SHA-256 — constant-time compare (still weak; upgrade recommended)
+        const { createHash, timingSafeEqual } = await import("crypto");
+        const submittedHex = createHash("sha256").update(submittedPassword).digest("hex").toLowerCase();
+        const a = Buffer.from(submittedHex);
+        const b = Buffer.from(storedHash.toLowerCase());
+        passwordValid = a.length === b.length && timingSafeEqual(a, b);
+      } else {
+        return null; // unrecognised hash format — deny
       }
 
-      return null;
+      if (!passwordValid) return null;
+
+      return {
+        id: String(dbUser.id),
+        email: dbUser.email,
+        name: dbUser.name,
+        image: dbUser.image ?? undefined,
+      };
     },
   }),
 ];
 
-if (enableSocialAuth) {
-  if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
-    providers.push(
-      Google({
-        clientId: process.env.GOOGLE_CLIENT_ID,
-        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      }),
-    );
-  }
-
-  if (process.env.FACEBOOK_CLIENT_ID && process.env.FACEBOOK_CLIENT_SECRET) {
-    providers.push(
-      Facebook({
-        clientId: process.env.FACEBOOK_CLIENT_ID,
-        clientSecret: process.env.FACEBOOK_CLIENT_SECRET,
-      }),
-    );
-  }
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  providers.push(
+    Google({
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    })
+  );
 }
 
-if (isProduction && !authSecret) {
-  throw new Error("NEXTAUTH_SECRET must be set in production");
+if (process.env.FACEBOOK_CLIENT_ID && process.env.FACEBOOK_CLIENT_SECRET) {
+  providers.push(
+    Facebook({
+      clientId: process.env.FACEBOOK_CLIENT_ID,
+      clientSecret: process.env.FACEBOOK_CLIENT_SECRET,
+    })
+  );
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -126,10 +110,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
   session: {
     strategy: "jwt",
-    maxAge: 60 * 60 * 8,
+    maxAge: 60 * 60 * 24 * 7,
   },
   jwt: {
-    maxAge: 60 * 60 * 8,
+    maxAge: 60 * 60 * 24 * 7,
   },
   providers,
   callbacks: {
@@ -139,21 +123,31 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return false;
         }
 
+        // Skip DB upsert for credentials (admin) logins — no social profile to store
         if (account.provider === "credentials") {
           return true;
         }
 
-        await query(
-          `
-          INSERT INTO users (name, email, image, provider)
-          VALUES (?, ?, ?, ?)
-          ON DUPLICATE KEY UPDATE
-            name = VALUES(name),
-            image = VALUES(image),
-            provider = VALUES(provider)
-          `,
-          [user.name ?? "Customer", user.email, user.image ?? null, account.provider],
-        );
+        let referredByStoreId: number | null = null;
+        try {
+          const { cookies } = await import("next/headers");
+          const cookieStore = await cookies();
+          const refCookie = cookieStore.get("ref_store_id")?.value;
+          if (refCookie) {
+            referredByStoreId = parseInt(refCookie, 10) || null;
+          }
+        } catch {
+          // Ignore header error outside request scope
+        }
+
+        // Automatic social user creation / lookup (Default role: customer)
+        await UserRepository.createOrUpdateSocialUser({
+          name: user.name || "Customer",
+          email: user.email,
+          image: user.image || null,
+          provider: account.provider,
+          referredByStoreId,
+        });
 
         return true;
       } catch (error) {
@@ -161,28 +155,36 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         return true;
       }
     },
-    async jwt({ token, user }) {
+    async jwt({ token }) {
       try {
-        if (user) {
-          const authUser = user as AuthUserWithRole;
-          token.role = authUser.role || "user";
-          token.id = authUser.id ?? token.id;
-        }
-
         if (token.email) {
-          const rows = await query<Array<{ id: number; role: string }>>(
-            "SELECT id, role FROM users WHERE LOWER(email) = ? LIMIT 1",
-            [token.email.toLowerCase()],
-          );
-          if (rows[0]) {
-            token.id = String(rows[0].id);
-            if (rows[0].role) {
-              token.role = rows[0].role;
+          const dbUser = await UserRepository.findByEmail(token.email);
+          if (dbUser) {
+            // If the user has been blocked since their last token issue, invalidate the session
+            if (dbUser.is_blocked) {
+              // Returning a token with a past expiry forces NextAuth to sign the user out
+              return { ...token, exp: 0 };
+            }
+
+            token.id = String(dbUser.id);
+            token.role = dbUser.role || "customer";
+            token.referredByStoreId = dbUser.referred_by_store_id || null;
+
+            // Attach assigned store IDs for vendor staff & owners
+            const stores = await StoreRepository.getUserStores(dbUser.id);
+            token.storeIds = stores.map((s) => s.id);
+
+            // Fetch attributed store slug if user was referred by a store
+            if (dbUser.referred_by_store_id) {
+              const refStore = await StoreRepository.findById(dbUser.referred_by_store_id);
+              if (refStore) {
+                token.referredStoreSlug = refStore.slug;
+              }
             }
           }
         }
 
-        token.role = token.role ?? "user";
+        token.role = token.role ?? "customer";
         return token;
       } catch (error) {
         console.error("JWT callback error:", error);
@@ -192,12 +194,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async session({ session, token }) {
       try {
         if (session.user) {
-          // Use token.id which is set in JWT callback
           if (token.id) {
             session.user.id = token.id as string;
           }
-          // Add role to session
-          (session.user as { role?: string }).role = String(token.role || "user");
+          (session.user as { role?: SystemRole }).role = (token.role as SystemRole) || "customer";
+          (session.user as { storeIds?: number[] }).storeIds = (token.storeIds as number[]) || [];
+          (session.user as { referredByStoreId?: number | null }).referredByStoreId = (token.referredByStoreId as number) || null;
+          (session.user as { referredStoreSlug?: string | null }).referredStoreSlug = (token.referredStoreSlug as string) || null;
         }
         return session;
       } catch (error) {

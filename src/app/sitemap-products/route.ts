@@ -19,7 +19,7 @@ export async function GET(request: Request): Promise<Response> {
   try {
     // Get products for this page
     const products = await query<Product[]>(
-      `SELECT id, updated_at FROM products ORDER BY updated_at DESC LIMIT ? OFFSET ?`,
+      `SELECT id, updated_at FROM products WHERE store_id = 0 ORDER BY updated_at DESC LIMIT ? OFFSET ?`,
       [pageSize, offset],
     );
 

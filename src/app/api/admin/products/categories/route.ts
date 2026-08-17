@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
-import { requireAdminApi } from "@/lib/authz";
+import { requireStoreOrAdminApi } from "@/lib/authz";
 
 type DeleteCategoryPayload = {
   category?: string;
   reassignTo?: string;
+  storeId?: number;
 };
 
 function normalizeCategory(value: string) {
@@ -12,7 +13,7 @@ function normalizeCategory(value: string) {
 }
 
 export async function DELETE(request: Request) {
-  const access = await requireAdminApi();
+  const access = await requireStoreOrAdminApi();
   if ("error" in access) {
     return NextResponse.json({ error: access.error }, { status: access.status });
   }
@@ -20,6 +21,11 @@ export async function DELETE(request: Request) {
   const payload = (await request.json().catch(() => null)) as DeleteCategoryPayload | null;
   const rawCategory = String(payload?.category ?? "");
   const rawReassign = String(payload?.reassignTo ?? "General");
+  const targetStoreId = !access.isSuperAdmin ? access.primaryStoreId : (payload?.storeId !== undefined && payload?.storeId !== null ? Number(payload.storeId) : 0);
+
+  if (!targetStoreId) {
+    return NextResponse.json({ error: "Forbidden: No valid store specified" }, { status: 403 });
+  }
 
   const category = normalizeCategory(rawCategory);
   const reassignTo = normalizeCategory(rawReassign) || "General";
@@ -40,8 +46,8 @@ export async function DELETE(request: Request) {
     const result = await query<{ affectedRows: number }>(
       `UPDATE products
        SET category = ?
-       WHERE LOWER(TRIM(category)) = LOWER(TRIM(?))`,
-      [reassignTo, category],
+       WHERE store_id = ? AND LOWER(TRIM(category)) = LOWER(TRIM(?))`,
+      [reassignTo, targetStoreId, category],
     );
 
     return NextResponse.json({

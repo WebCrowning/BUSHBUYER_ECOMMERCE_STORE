@@ -7,6 +7,8 @@ import { paypalCaptureOrderSchema } from "@/lib/validation";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp, validateJsonRequest, validateSameOrigin } from "@/lib/request-security";
 import { auth } from "@/auth";
+import { WalletRepository } from "@/repositories/wallet.repository";
+import { PaymentRepository } from "@/repositories/payment.repository";
 import { ZodError } from "zod";
 
 type PaypalCaptureResponse = {
@@ -213,6 +215,13 @@ export async function POST(request: Request) {
       address,
       country,
     } = parsed.data;
+
+    // Extract optional delivery fields from raw payload (not schema-validated, safe for NULL)
+    const rawPayload = payload as Record<string, unknown>;
+    const deliveryMethodId = rawPayload.delivery_method_id ? Number(rawPayload.delivery_method_id) : null;
+    const deliveryFee = rawPayload.delivery_fee ? Number(rawPayload.delivery_fee) : 0;
+    const deliveryNotes = typeof rawPayload.delivery_notes === "string" ? rawPayload.delivery_notes : null;
+    const deliveryDataJson = typeof rawPayload.delivery_data_json === "string" ? rawPayload.delivery_data_json : null;
 
     assertPaypalEnvironmentConsistency();
 
@@ -487,15 +496,45 @@ export async function POST(request: Request) {
         const nextPublicOrderId = generateOrderReference();
 
         try {
+          // Determine the store_id from the first product in the snapshot.
+          // All items in a single PayPal checkout session belong to one store
+          // (multi-store carts go through /api/checkout/split instead).
+          const firstProductId = snapshotItems[0]?.productId;
+          let storeId = 1; // fallback to flagship store
+          if (firstProductId) {
+            const [storeRow] = await conn.execute(
+              "SELECT store_id FROM products WHERE id = ? LIMIT 1",
+              [firstProductId]
+            ) as [{ store_id?: number }[], unknown];
+            if (Array.isArray(storeRow) && storeRow[0]?.store_id) {
+              storeId = Number(storeRow[0].store_id);
+            }
+          }
+
+          const commissionRate = await WalletRepository.getCommissionRate(storeId);
+          const grossSale = Number((verifiedTotal + deliveryFee).toFixed(2));
+          const commissionAmount = Number(((verifiedTotal * commissionRate) / 100).toFixed(2));
+          const vendorPayout = Number((grossSale - commissionAmount).toFixed(2));
+          const masterOrderId = nextPublicOrderId; // 1:1 for direct single-store checkout
+
           const [insertOrderRaw] = await conn.execute(
             `INSERT INTO orders 
-             (public_order_id, user_id, total_price, status, paypal_order_id, paypal_transaction_id, customer_name, customer_email, phone, address, country, created_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+             (public_order_id, master_order_id, store_id, user_id, total_price,
+              order_status, payment_status, payment_gateway,
+              commission_amount, vendor_payout_amount,
+              paypal_order_id, paypal_transaction_id,
+              customer_name, customer_email, phone, address, country,
+              delivery_method_id, delivery_fee, delivery_notes, delivery_data_json,
+              created_at)
+             VALUES (?, ?, ?, ?, ?, 'Payment Confirmed', 'Paid', 'paypal', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
             [
               nextPublicOrderId,
+              masterOrderId,
+              storeId,
               userId,
-              Number(verifiedTotal.toFixed(2)),
-              "Paid",
+              grossSale,
+              commissionAmount,
+              vendorPayout,
               paypalOrderId,
               transactionId,
               customerName || session.user.name || "Customer",
@@ -503,6 +542,10 @@ export async function POST(request: Request) {
               phone || "",
               address || "",
               country || "",
+              deliveryMethodId,
+              deliveryFee,
+              deliveryNotes,
+              deliveryDataJson,
             ],
           );
 
@@ -587,6 +630,41 @@ export async function POST(request: Request) {
       body: `PayPal payment captured successfully (${Number(verifiedTotal).toFixed(2)} USD).`,
       link: "/admin/orders",
     });
+
+    // Credit seller wallet immediately (webhook is secondary confirmation only).
+    // This ensures sellers always see their earnings even if the webhook is delayed/missing.
+    try {
+      const [orderRow] = await query<{
+        store_id: number;
+        total_price: number;
+        commission_amount: number;
+      }[]>(
+        "SELECT store_id, total_price, commission_amount FROM orders WHERE id = ? LIMIT 1",
+        [orderId]
+      );
+      if (orderRow) {
+        await WalletRepository.creditStoreSale(
+          orderRow.store_id,
+          Number(orderRow.total_price),
+          Number(orderRow.commission_amount),
+          publicOrderId
+        );
+      }
+
+      // Record payment transaction for the admin dashboard
+      await PaymentRepository.recordTransaction({
+        master_order_id: publicOrderId,
+        payment_gateway: "paypal",
+        payment_reference: transactionId,
+        transaction_status: "completed",
+        amount: Number(verifiedTotal),
+        currency: "USD",
+        customer_id: userId,
+      });
+    } catch (walletErr) {
+      // Non-fatal: webhook will retry crediting if this fails
+      console.error("[capture-order] Wallet crediting error (non-fatal):", walletErr);
+    }
 
     return NextResponse.json({
       ok: true,

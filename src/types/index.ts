@@ -2,8 +2,11 @@ export type CurrencyCode = "XAF" | "USD";
 
 export type Product = {
   id: number;
+  storeId?: number;
+  storeName?: string;
   name: string;
   price: number;
+  discountPrice?: number | null;
   transportFee: number;
   image: string;
   imageZoom?: number;
@@ -18,6 +21,8 @@ export type Product = {
 
 export type CartItem = {
   productId: number;
+  storeId?: number;
+  storeName?: string;
   name: string;
   price: number;
   transportFee: number;
@@ -28,14 +33,35 @@ export type CartItem = {
   unitValue: number;
 };
 
-export type OrderStatus = "Pending" | "Paid" | "Shipped" | "Delivered";
+export type OrderStatus =
+  | "Pending"
+  | "Paid"
+  | "Shipped"
+  | "Delivered"
+  | "Pending Payment"
+  | "Payment Confirmed"
+  | "Awaiting Seller Confirmation"
+  | "Accepted"
+  | "Preparing"
+  | "Packed"
+  | "Ready for Pickup"
+  | "In Transit"
+  | "Out for Delivery"
+  | "Completed"
+  | "Cancelled"
+  | "Returned"
+  | "Refunded";
 
 export type Order = {
   id: number;
   public_order_id: string;
+  master_order_id?: string;
+  store_id?: number;
   user_id: number;
   total_price: number;
   status: OrderStatus;
+  order_status?: OrderStatus;
+  payment_status?: string;
   address: string;
   phone: string;
   country: string;

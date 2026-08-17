@@ -15,13 +15,13 @@ type FeaturedProduct = Pick<
 >;
 
 export const metadata: Metadata = {
-  title: "Bushbuyer | Buy Authentic African Raw Food Online",
+  title: "Bushbuyer | Multi-Vendor Marketplace — Shop Everything",
   description:
-    "Shop premium African raw food ingredients - snails, dried fish, eru leaves - sourced directly from trusted farmers. Fast worldwide shipping.",
-  keywords: "African food online, snails, dried fish, eru leaves, authentic African ingredients",
+    "Discover products from verified stores worldwide. Browse electronics, fashion, food, and more — all in one trusted marketplace with fast shipping.",
+  keywords: "online marketplace, multi-vendor store, shop online, verified sellers, worldwide shipping, buy products online",
   openGraph: {
-    title: "Bushbuyer | Premium African Raw Food Marketplace",
-    description: "Shop authentic African raw food ingredients with worldwide delivery",
+    title: "Bushbuyer | Your Multi-Vendor Marketplace",
+    description: "Shop from verified stores worldwide — one marketplace, every product type",
     url: "https://bushbuyer.com",
     type: "website",
     images: [
@@ -29,7 +29,7 @@ export const metadata: Metadata = {
         url: "/og-home.jpg",
         width: 1200,
         height: 630,
-        alt: "Bushbuyer Homepage",
+        alt: "Bushbuyer Marketplace Homepage",
       },
     ],
   },
@@ -39,8 +39,8 @@ export const metadata: Metadata = {
 };
 
 const highlights = [
-  "Direct-from-source supplier network",
-  "Cold-chain logistics for freshness",
+  "Verified seller network",
+  "Quality-checked every order",
   "Fast support via WhatsApp and email",
 ];
 
@@ -67,6 +67,7 @@ export default async function Home() {
     query<FeaturedProduct[]>(
       `SELECT id, name, price, image, description, category
        FROM products
+       WHERE marketplace_enabled = 1 AND status = 'active'
        ORDER BY featured DESC, created_at DESC
        LIMIT 6`,
     ),
@@ -89,28 +90,31 @@ export default async function Home() {
   });
 
   const categories = [
-    { name: "Seafood", emoji: "🐟", color: "from-blue-500/20 to-cyan-500/20" },
-    { name: "Protein", emoji: "🦪", color: "from-emerald-500/20 to-teal-500/20" },
-    { name: "Vegetables", emoji: "🌿", color: "from-lime-500/20 to-emerald-500/20" },
+    { name: "Seafood", emoji: "🦞", color: "from-blue-500/20 to-cyan-500/20" },
+    { name: "Electronics", emoji: "💻", color: "from-violet-500/20 to-purple-500/20" },
+    { name: "Fashion & Apparel", emoji: "👗", color: "from-pink-500/20 to-rose-500/20" },
+    { name: "Health & Beauty", emoji: "💊", color: "from-emerald-500/20 to-teal-500/20" },
+    { name: "African Raw Foods", emoji: "🌿", color: "from-lime-500/20 to-emerald-500/20" },
+    { name: "Home & Living", emoji: "🏠", color: "from-amber-500/20 to-orange-500/20" },
   ];
 
   const testimonials = [
     {
       name: "Amara Okonkwo",
-      role: "Restaurant Owner, Lagos",
-      text: "Bushbuyer sources the most authentic ingredients. My customers notice the quality difference immediately.",
+      role: "Store Owner, Lagos",
+      text: "Setting up my store on Bushbuyer took minutes. My products are now reaching customers I never could have found on my own.",
       rating: 5,
     },
     {
       name: "James Kofi",
-      role: "Family Chef, Toronto",
-      text: "Finally found genuine African products abroad. The freshness and taste are unmatched. Highly recommend!",
+      role: "Online Shopper, Toronto",
+      text: "Everything I need in one place — great sellers, fast delivery, and quality I can trust. Shopping here is effortless.",
       rating: 5,
     },
     {
       name: "Yvette Mukondi",
-      role: "Food Blogger, Paris",
-      text: "Super impressed with the service and product variety. Bushbuyer makes diaspora cooking so much easier.",
+      role: "Small Business Owner, Paris",
+      text: "The platform made it simple to list my products and connect with buyers worldwide. Sales have doubled since joining.",
       rating: 5,
     },
   ];
@@ -137,14 +141,14 @@ export default async function Home() {
             <div className="grid items-center gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:gap-12">
               <div className="text-center lg:text-left">
                 <p className="inline-flex items-center rounded-full border border-brand/20 bg-white/75 px-4 py-1.5 text-xs font-bold uppercase tracking-[0.14em] text-brand-deep mb-5">
-                  African Raw Food Marketplace
+                  Multi-Vendor Marketplace
                 </p>
                 <h1 className="text-4xl md:text-6xl font-black leading-[1.05] tracking-tight text-brand-deep mb-5">
-                  Authentic African ingredients,
-                  <span className="block text-accent">delivered with global reliability.</span>
+                  Every store, every product,
+                  <span className="block text-accent">one trusted marketplace.</span>
                 </h1>
                 <p className="mx-auto text-base md:text-lg leading-relaxed text-foreground/75 mb-8 max-w-2xl lg:mx-0">
-                  Source premium snails, dried fish, and fresh eru leaves through verified farmers and processors. Every order is quality-checked, carefully packed, and shipped fast to your doorstep.
+                  Discover verified stores selling electronics, fashion, food, and more — all with quality-checked listings, secure checkout, and fast delivery to your door.
                 </p>
               </div>
 
@@ -172,15 +176,15 @@ export default async function Home() {
               <div className="grid grid-cols-1 gap-3 text-sm font-semibold text-foreground/80 sm:grid-cols-3 md:gap-6 md:text-base">
                 <div className="flex items-center justify-center gap-2">
                   <span className="text-2xl">✓</span>
-                  <span>100% Authentic</span>
+                  <span>Verified Sellers</span>
                 </div>
                 <div className="flex items-center justify-center gap-2">
                   <span className="text-2xl">✓</span>
-                  <span>Cold Chain Fresh</span>
+                  <span>Secure Checkout</span>
                 </div>
                 <div className="flex items-center justify-center gap-2">
                   <span className="text-2xl">✓</span>
-                  <span>Fast Shipping</span>
+                  <span>Fast Worldwide Shipping</span>
                 </div>
               </div>
             </div>
@@ -191,9 +195,9 @@ export default async function Home() {
           <div className="container-shell">
             <div className="text-center mb-12">
               <p className="section-kicker">Shop by Category</p>
-              <h2 className="section-title mt-2 text-brand-deep">Find Your Favorites</h2>
+              <h2 className="section-title mt-2 text-brand-deep">Browse What You Need</h2>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
               {categories.map((cat) => (
                 <Link
                   key={cat.name}
@@ -215,7 +219,7 @@ export default async function Home() {
           <div className="mb-6 flex items-end justify-between gap-4">
             <div>
               <p className="section-kicker">Featured Products</p>
-              <h2 className="section-title mt-2 text-brand-deep">Best Sellers & New Arrivals</h2>
+              <h2 className="section-title mt-2 text-brand-deep">Top Picks Across All Stores</h2>
             </div>
             <Link
               href="/products"
@@ -244,7 +248,7 @@ export default async function Home() {
           <div className="container-shell">
             <div className="text-center mb-16">
               <p className="section-kicker">Trusted by Thousands</p>
-              <h2 className="section-title mt-2 text-brand-deep">What Our Customers Say</h2>
+              <h2 className="section-title mt-2 text-brand-deep">What Our Community Says</h2>
             </div>
             <div className="grid md:grid-cols-3 gap-8">
               {testimonials.map((testimonial) => (
@@ -271,34 +275,34 @@ export default async function Home() {
               <div>
                 <p className="section-kicker">Limited Time</p>
                 <h2 className="text-4xl md:text-5xl font-black text-brand-deep mb-4 leading-tight">
-                  Launch Week Special
+                  New Seller Launch Offer
                 </h2>
                 <p className="text-lg text-foreground/75 mb-6">
-                  Celebrate with us! Get 15% off your first order plus free shipping on orders over $50.
+                  Open your store this week and get your first month free — no listing fees, no commission on your first 50 orders.
                 </p>
                 <ul className="space-y-3 mb-8 text-foreground/80">
                   <li className="flex items-center gap-3">
                     <span className="text-accent text-xl">✓</span>
-                    <span>Fresh, hand-picked ingredients</span>
+                    <span>Free store setup in minutes</span>
                   </li>
                   <li className="flex items-center gap-3">
                     <span className="text-accent text-xl">✓</span>
-                    <span>Packed within 24 hours of order</span>
+                    <span>Reach buyers from day one</span>
                   </li>
                   <li className="flex items-center gap-3">
                     <span className="text-accent text-xl">✓</span>
-                    <span>Satisfaction guaranteed</span>
+                    <span>Built-in payments and delivery tools</span>
                   </li>
                   <li className="flex items-center gap-3">
                     <span className="text-accent text-xl">✓</span>
-                    <span>Bulk discounts available</span>
+                    <span>Dedicated seller support</span>
                   </li>
                 </ul>
                 <Link
-                  href="/products"
+                  href="/contact"
                   className="inline-flex px-8 py-3.5 bg-gradient-to-r from-accent to-orange-600 text-white font-bold rounded-full text-lg transition-all hover:shadow-lg hover:shadow-accent/30"
                 >
-                  Claim Your Discount
+                  Open Your Store
                 </Link>
               </div>
               <div className="relative">
@@ -320,18 +324,18 @@ export default async function Home() {
           </div>
           <div className="container-shell relative z-10">
             <div className="max-w-3xl">
-              <p className="inline-block px-4 py-2 bg-white/10 rounded-full text-sm font-bold mb-6">🏢 B2B & Wholesale</p>
+              <p className="inline-block px-4 py-2 bg-white/10 rounded-full text-sm font-bold mb-6">🏢 Sellers & Brands</p>
               <h2 className="text-4xl md:text-5xl font-black mb-4 leading-tight">
-                Supply Your Restaurant or Store
+                Grow Your Business With Us
               </h2>
               <p className="text-lg text-white/80 mb-8 max-w-2xl">
-                Premium wholesale pricing, dedicated support, and custom sourcing for restaurants, catering companies, and retailers worldwide.
+                List your products, reach a global audience, and manage everything from one powerful seller dashboard — built for stores of every size.
               </p>
               <Link
                 href="/contact"
                 className="inline-flex px-8 py-3.5 bg-accent text-brand-deep font-bold rounded-full text-lg transition-all hover:bg-yellow-400 hover:shadow-lg"
               >
-                Get Wholesale Pricing
+                Become a Seller
               </Link>
             </div>
           </div>

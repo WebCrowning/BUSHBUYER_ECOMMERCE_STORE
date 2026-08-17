@@ -10,22 +10,32 @@ type AdminOrder = {
   customer_name: string;
   customer_email: string;
   total_price: number;
-  status: "Pending" | "Paid" | "Shipped" | "Delivered";
+  order_status: string;
+  payment_status: string;
+  payment_gateway: string;
   received_confirmed_at: string | null;
   created_at: string;
   country: string;
   phone: string;
   address: string;
+  store_name?: string;
 };
 
-const statuses: AdminOrder["status"][] = ["Pending", "Paid", "Shipped", "Delivered"];
+// Map API order_status to the legacy status tab keys used for filtering
+type StatusTab = "Pending" | "Paid" | "Shipped" | "Delivered";
+const statuses: StatusTab[] = ["Pending", "Paid", "Shipped", "Delivered"];
 
-const statusConfig: Record<AdminOrder["status"], { icon: React.ReactNode; color: string; bgColor: string }> = {
-  Pending: { icon: <Clock className="h-4 w-4" />, color: "text-gray-600", bgColor: "bg-gray-100" },
-  Paid: { icon: <CheckCircle className="h-4 w-4" />, color: "text-yellow-600", bgColor: "bg-yellow-100" },
-  Shipped: { icon: <Truck className="h-4 w-4" />, color: "text-blue-600", bgColor: "bg-blue-100" },
-  Delivered: { icon: <Package className="h-4 w-4" />, color: "text-green-600", bgColor: "bg-green-100" },
-};
+// Broader matching — order_status values from the DB may be verbose like "Payment Confirmed"
+function matchesTab(order: AdminOrder, tab: StatusTab): boolean {
+  const s = order.order_status ?? "";
+  switch (tab) {
+    case "Pending":  return s === "Pending" || s === "Pending Payment" || s === "Awaiting Seller Confirmation";
+    case "Paid":     return s === "Paid" || s === "Payment Confirmed" || s === "Accepted" || s === "Preparing" || s === "Packed";
+    case "Shipped":  return s === "Shipped" || s === "In Transit" || s === "Out for Delivery" || s === "Ready for Pickup";
+    case "Delivered":return s === "Delivered" || s === "Completed";
+    default:         return false;
+  }
+}
 
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<AdminOrder[]>([]);
@@ -50,7 +60,7 @@ export default function AdminOrdersPage() {
     void loadOrders();
   }, []);
 
-  async function updateOrderStatus(orderId: number, nextStatus: AdminOrder["status"]) {
+  async function updateOrderStatus(orderId: number, nextStatus: StatusTab) {
     setUpdating(orderId);
     try {
       const response = await fetch(`/api/admin/orders/${orderId}/status`, {
@@ -80,22 +90,43 @@ export default function AdminOrdersPage() {
     }
   }
 
-  const newAndInProgressOrders = orders.filter((order) => order.status !== "Delivered");
+  const newAndInProgressOrders = orders.filter(
+    (o) => !matchesTab(o, "Delivered") && !matchesTab(o, "Shipped")
+  );
   const deliveredAwaitingConfirmation = orders.filter(
-    (order) => order.status === "Delivered" && !order.received_confirmed_at,
+    (o) => matchesTab(o, "Delivered") && !o.received_confirmed_at,
   );
   const customerConfirmedOrders = orders.filter(
-    (order) => order.status === "Delivered" && Boolean(order.received_confirmed_at),
+    (o) => matchesTab(o, "Delivered") && Boolean(o.received_confirmed_at),
   );
 
   function renderOrderCard(order: AdminOrder) {
+    const statusConfig: Record<StatusTab, { icon: React.ReactNode; color: string; bgColor: string }> = {
+      Pending:  { icon: <Clock className="h-4 w-4" />,       color: "text-gray-600",  bgColor: "bg-gray-100"  },
+      Paid:     { icon: <CheckCircle className="h-4 w-4" />, color: "text-yellow-600",bgColor: "bg-yellow-100"},
+      Shipped:  { icon: <Truck className="h-4 w-4" />,       color: "text-blue-600",  bgColor: "bg-blue-100"  },
+      Delivered:{ icon: <Package className="h-4 w-4" />,     color: "text-green-600", bgColor: "bg-green-100" },
+    };
+
     return (
       <div key={order.id} className="rounded-2xl border border-border/50 bg-white p-6 shadow-sm hover:shadow-md transition-shadow">
         <div className="flex items-start justify-between gap-4 mb-4">
           <div className="flex-1">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <h3 className="text-xl font-bold text-brand-deep">Order {order.public_order_id}</h3>
-              <OrderStatusBadge status={order.status} />
+              <OrderStatusBadge status={order.order_status} />
+              {order.payment_status && (
+                <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold capitalize ${
+                  order.payment_status === "Paid" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-700"
+                }`}>
+                  {order.payment_status}
+                </span>
+              )}
+              {order.store_name && (
+                <span className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] font-bold text-sky-700">
+                  {order.store_name}
+                </span>
+              )}
             </div>
             <p className="mt-2 text-sm text-foreground/60">
               {order.customer_name} • {order.customer_email}
@@ -117,7 +148,7 @@ export default function AdminOrdersPage() {
             <p className="text-xs font-semibold uppercase text-foreground/50">Contact</p>
             <p className="mt-1 font-medium text-foreground/80">{order.phone}</p>
             <p className="text-sm text-foreground/60">{new Date(order.created_at).toLocaleDateString()}</p>
-            {order.status === "Delivered" ? (
+            {matchesTab(order, "Delivered") ? (
               <div className="mt-2">
                 {order.received_confirmed_at ? (
                   <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-700">
@@ -138,17 +169,13 @@ export default function AdminOrdersPage() {
           <p className="mb-3 text-xs font-semibold uppercase text-foreground/50">Update Status</p>
           <div className="flex flex-wrap gap-2">
             {statuses.map((item) => {
-              const isActive = order.status === item;
+              const isActive = matchesTab(order, item);
               const config = statusConfig[item];
               return (
                 <button
                   key={item}
                   type="button"
-                  onClick={() => {
-                    if (!isActive) {
-                      void updateOrderStatus(order.id, item);
-                    }
-                  }}
+                  onClick={() => { if (!isActive) void updateOrderStatus(order.id, item); }}
                   disabled={updating === order.id}
                   className={`flex items-center gap-2 rounded-lg px-4 py-2.5 font-semibold text-sm transition-all ${
                     isActive

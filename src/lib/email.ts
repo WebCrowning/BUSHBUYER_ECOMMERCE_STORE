@@ -68,6 +68,7 @@ export async function sendOrderCreatedEmails(input: {
   customerEmail: string;
   total: number;
 }) {
+  const base = env.siteUrl;
   await Promise.all([
     sendEmailSafe({
       to: input.customerEmail,
@@ -77,7 +78,7 @@ export async function sendOrderCreatedEmails(input: {
         "",
         `Your order ${input.orderId} has been received and payment was verified.`,
         `Order total: USD ${Number(input.total).toFixed(2)}`,
-        "You can track your order in your dashboard: http://localhost:3000/orders",
+        `You can track your order in your dashboard: ${base}/orders`,
         "",
         "Thank you for shopping with Bushbuyer.",
       ].join("\n"),
@@ -90,7 +91,7 @@ export async function sendOrderCreatedEmails(input: {
         `Order ID: ${input.orderId}`,
         `Customer: ${input.customerName} (${input.customerEmail})`,
         `Total: USD ${Number(input.total).toFixed(2)}`,
-        "Review in admin dashboard: http://localhost:3000/admin/orders",
+        `Review in admin dashboard: ${base}/admin/orders`,
       ].join("\n"),
     }),
   ]);
@@ -102,6 +103,7 @@ export async function sendOrderStatusChangedEmails(input: {
   customerEmail: string;
   newStatus: string;
 }) {
+  const base = env.siteUrl;
   await Promise.all([
     sendEmailSafe({
       to: input.customerEmail,
@@ -110,7 +112,7 @@ export async function sendOrderStatusChangedEmails(input: {
         `Hi ${input.customerName},`,
         "",
         `Your order ${input.orderId} is now marked as ${input.newStatus}.`,
-        "Track your order: http://localhost:3000/orders",
+        `Track your order: ${base}/orders`,
       ].join("\n"),
     }),
     sendEmailSafe({
@@ -119,7 +121,7 @@ export async function sendOrderStatusChangedEmails(input: {
       text: [
         `Order ${input.orderId} status was updated to ${input.newStatus}.`,
         `Customer: ${input.customerName} (${input.customerEmail})`,
-        "View in admin dashboard: http://localhost:3000/admin/orders",
+        `View in admin dashboard: ${base}/admin/orders`,
       ].join("\n"),
     }),
   ]);
@@ -130,6 +132,7 @@ export async function sendCustomerReceivedConfirmationEmails(input: {
   customerName: string;
   customerEmail: string;
 }) {
+  const base = env.siteUrl;
   await Promise.all([
     sendEmailSafe({
       to: env.adminEmails,
@@ -137,7 +140,7 @@ export async function sendCustomerReceivedConfirmationEmails(input: {
       text: [
         `Customer ${input.customerName} confirmed package receipt.`,
         `Order ID: ${input.orderId}`,
-        "Review in admin dashboard: http://localhost:3000/admin/orders",
+        `Review in admin dashboard: ${base}/admin/orders`,
       ].join("\n"),
     }),
     sendEmailSafe({

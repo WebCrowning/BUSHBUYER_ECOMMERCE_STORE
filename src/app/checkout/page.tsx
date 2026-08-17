@@ -7,9 +7,11 @@ import { useEffect, useMemo, useState } from "react";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { PayPalButton } from "@/components/paypal-button";
+import { DeliveryMethodSelector } from "@/components/delivery/delivery-method-selector";
 import { useCart } from "@/context/cart-context";
 import { formatCurrency } from "@/lib/utils";
-import { AlertCircle, CheckCircle } from "lucide-react";
+import { AlertCircle, CheckCircle, CreditCard, Smartphone } from "lucide-react";
+import type { CustomerDeliveryDetails } from "@/types/delivery";
 
 type CheckoutForm = {
   customerName: string;
@@ -59,11 +61,29 @@ export default function CheckoutPage() {
   const [stockIssues, setStockIssues] = useState<StockValidationEntry[]>([]);
   const [checkingStock, setCheckingStock] = useState(false);
   const router = useRouter();
+
+  // Delivery State
+  const [deliveryDetails, setDeliveryDetails] = useState<CustomerDeliveryDetails | null>(null);
+  const [deliveryFee, setDeliveryFee] = useState<number>(0);
+
+  // Payment method state
+  const [paymentMethod, setPaymentMethod] = useState<"paypal" | "fapshi">("paypal");
+  const [fapshiLoading, setFapshiLoading] = useState(false);
+  const [fapshiError, setFapshiError] = useState<string | null>(null);
+
+  const handleDeliveryChange = (details: CustomerDeliveryDetails, fee: number) => {
+    setDeliveryDetails(details);
+    setDeliveryFee(fee);
+  };
+
+  // Determine primary store ID from cart items (use first item's storeId or default 1)
+  const primaryStoreId = items[0]?.storeId ?? 1;
+
   const transportTotal = items.reduce(
     (sum, item) => sum + item.transportFee * item.quantityPackages,
     0,
   );
-  const grandTotal = subtotal + transportTotal;
+  const grandTotal = subtotal + transportTotal + deliveryFee;
 
   const stockBlocked = stockIssues.length > 0;
 
@@ -253,6 +273,61 @@ export default function CheckoutPage() {
 
   const handlePaymentError = (message: string) => {
     setError(message);
+  };
+
+  // Generate a stable master order ID for Fapshi session linking
+  const masterOrderId = useMemo(() => {
+    // Use a client-side random reference; server will validate via fapshi_checkout_sessions
+    if (typeof window !== "undefined") {
+      const stored = sessionStorage.getItem("fapshi_master_order_id");
+      if (stored) return stored;
+      const id = `BF-FAPSHI-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+      sessionStorage.setItem("fapshi_master_order_id", id);
+      return id;
+    }
+    return `BF-FAPSHI-${Date.now()}`;
+  }, []);
+
+  const handleFapshiPay = async () => {
+    if (!isFormValid || stockBlocked) return;
+    setFapshiLoading(true);
+    setFapshiError(null);
+    try {
+      const res = await fetch("/api/payments/fapshi/initiate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          masterOrderId,
+          customerEmail: form.customerEmail,
+          cartItems: items.map((item) => ({
+            productId: item.productId,
+            quantityPackages: item.quantityPackages,
+            unitPrice: item.price,
+            unitTransportFee: item.transportFee,
+            packageName: item.packageName,
+            unitType: item.unitType,
+            unitValue: item.unitValue,
+            storeId: item.storeId,
+          })),
+          deliveryFee,
+          deliveryMethodId: deliveryDetails?.delivery_method_id || null,
+          deliveryDataJson: deliveryDetails ? JSON.stringify(deliveryDetails) : null,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.link) {
+        setFapshiError(data.error || "Failed to initiate Mobile Money payment.");
+        return;
+      }
+
+      // Redirect to Fapshi payment page
+      window.location.href = data.link;
+    } catch {
+      setFapshiError("Network error. Please check your connection and try again.");
+    } finally {
+      setFapshiLoading(false);
+    }
   };
 
   const fieldErrors: Record<FormField, string> = useMemo(() => ({
@@ -860,6 +935,16 @@ export default function CheckoutPage() {
               </div>
             </div>
 
+            {/* === MODULAR DELIVERY METHOD SELECTOR === */}
+            <div className="mt-8 border-t border-border/30 pt-8">
+              <h3 className="text-lg font-bold text-brand-deep mb-4">Delivery Method</h3>
+              <DeliveryMethodSelector
+                storeId={primaryStoreId}
+                cartSubtotal={subtotal}
+                onChange={handleDeliveryChange}
+              />
+            </div>
+
             {hasValidationErrors && (
               <div className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700" aria-live="polite">
                 <p className="font-semibold">Please fix the following before payment:</p>
@@ -882,10 +967,40 @@ export default function CheckoutPage() {
             <div className="mt-8 border-t border-border/30 pt-8">
               <h3 className="text-lg font-bold text-brand-deep mb-4">Payment Method</h3>
 
-              {error && (
+              {/* Payment Method Tabs */}
+              <div className="flex gap-2 mb-6 p-1 bg-surface-soft rounded-xl">
+                <button
+                  type="button"
+                  id="payment-tab-paypal"
+                  onClick={() => { setPaymentMethod("paypal"); setError(null); setFapshiError(null); }}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${
+                    paymentMethod === "paypal"
+                      ? "bg-white shadow-sm text-brand-deep border border-border/40"
+                      : "text-foreground/60 hover:text-foreground/80"
+                  }`}
+                >
+                  <CreditCard className="h-4 w-4" />
+                  PayPal
+                </button>
+                <button
+                  type="button"
+                  id="payment-tab-fapshi"
+                  onClick={() => { setPaymentMethod("fapshi"); setError(null); setFapshiError(null); }}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${
+                    paymentMethod === "fapshi"
+                      ? "bg-white shadow-sm text-brand-deep border border-border/40"
+                      : "text-foreground/60 hover:text-foreground/80"
+                  }`}
+                >
+                  <Smartphone className="h-4 w-4" />
+                  Mobile Money
+                </button>
+              </div>
+
+              {(error || fapshiError) && (
                 <div className="mb-4 flex items-center gap-3 rounded-lg bg-red-100 p-4 text-red-700">
                   <AlertCircle className="h-5 w-5 flex-shrink-0" />
-                  <p className="text-sm font-medium">{error}</p>
+                  <p className="text-sm font-medium">{error || fapshiError}</p>
                 </div>
               )}
 
@@ -922,38 +1037,88 @@ export default function CheckoutPage() {
                     ))}
                   </div>
                 </div>
-              ) : !process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID ? (
-                <div className="rounded-lg bg-red-100/50 border border-red-200 p-4 text-sm text-red-700">
-                  PayPal is not configured. Please contact support.
-                </div>
+              ) : paymentMethod === "paypal" ? (
+                !process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID ? (
+                  <div className="rounded-lg bg-red-100/50 border border-red-200 p-4 text-sm text-red-700">
+                    PayPal is not configured. Please contact support.
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="rounded-lg border-2 border-dashed border-border/50 bg-surface/30 p-6 min-h-24 flex items-center justify-center">
+                      <PayPalButton
+                        customerName={form.customerName}
+                        customerEmail={form.customerEmail}
+                        phone={phoneForOrder}
+                        address={shippingAddressForOrder}
+                        country={form.country}
+                        total={grandTotal}
+                        deliveryMethodId={deliveryDetails?.delivery_method_id}
+                        deliveryFee={deliveryFee}
+                        deliveryNotes={deliveryDetails?.deliveryInstructions}
+                        deliveryDataJson={deliveryDetails ? JSON.stringify(deliveryDetails) : undefined}
+                        onSuccess={handlePaymentSuccess}
+                        onError={handlePaymentError}
+                        disabled={stockBlocked || checkingStock}
+                        disabledReason={
+                          checkingStock
+                            ? "Checking stock availability. Please wait a moment."
+                            : stockBlockedMessage
+                        }
+                      />
+                    </div>
+                    <p className="text-xs text-foreground/50 text-center">
+                      Click the PayPal button above to complete your payment.
+                    </p>
+                  </div>
+                )
               ) : (
+                /* Fapshi Mobile Money */
                 <div className="space-y-4">
-                  <div className="rounded-lg border-2 border-dashed border-border/50 bg-surface/30 p-6 min-h-24 flex items-center justify-center">
-                    <PayPalButton
-                      customerName={form.customerName}
-                      customerEmail={form.customerEmail}
-                      phone={phoneForOrder}
-                      address={shippingAddressForOrder}
-                      country={form.country}
-                      total={grandTotal}
-                      onSuccess={handlePaymentSuccess}
-                      onError={handlePaymentError}
-                      disabled={stockBlocked || checkingStock}
-                      disabledReason={
-                        checkingStock
-                          ? "Checking stock availability. Please wait a moment."
-                          : stockBlockedMessage
-                      }
-                    />
+                  <div className="rounded-lg border border-border/40 bg-surface/40 p-5">
+                    <div className="flex items-start gap-3 mb-4">
+                      <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
+                        <Smartphone className="h-5 w-5 text-orange-600" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-sm text-foreground/80">Fapshi Mobile Money</p>
+                        <p className="text-xs text-foreground/55 mt-0.5">
+                          Pay securely with MTN MoMo, Orange Money, or other mobile wallets.
+                          You will be redirected to the Fapshi payment page.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="rounded-md bg-orange-50 border border-orange-100 px-4 py-2 text-xs text-orange-700 mb-4">
+                      Amount to pay: <span className="font-bold">{formatCurrency(grandTotal, "USD")}</span>
+                      {" "}<span className="text-orange-500">(converted to XAF at checkout)</span>
+                    </div>
+                    <button
+                      id="fapshi-pay-btn"
+                      type="button"
+                      onClick={handleFapshiPay}
+                      disabled={fapshiLoading || stockBlocked || checkingStock}
+                      className="w-full flex items-center justify-center gap-2 py-3 px-6 rounded-xl bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white font-bold text-sm transition-all disabled:opacity-60 disabled:cursor-not-allowed shadow-md hover:shadow-lg"
+                    >
+                      {fapshiLoading ? (
+                        <>
+                          <span className="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          Redirecting to Mobile Money...
+                        </>
+                      ) : (
+                        <>
+                          <Smartphone className="h-4 w-4" />
+                          Pay with Mobile Money
+                        </>
+                      )}
+                    </button>
                   </div>
                   <p className="text-xs text-foreground/50 text-center">
-                    Click the PayPal button above to complete your payment.
+                    Powered by Fapshi. Supports MTN MoMo &amp; Orange Money.
                   </p>
                 </div>
               )}
 
               <p className="mt-6 text-xs text-foreground/50 text-center">
-                Payments are processed securely by PayPal. Your data is protected.
+                Payments are processed securely. Your data is protected.
               </p>
             </div>
           </section>
@@ -990,6 +1155,18 @@ export default function CheckoutPage() {
                 <span>Transport fees:</span>
                 <span>{formatCurrency(transportTotal, "USD")}</span>
               </div>
+              {deliveryFee > 0 && (
+                <div className="flex justify-between text-foreground/60">
+                  <span>Delivery fee:</span>
+                  <span>{formatCurrency(deliveryFee, "USD")}</span>
+                </div>
+              )}
+              {deliveryFee === 0 && deliveryDetails && (
+                <div className="flex justify-between text-green-600 text-xs font-semibold">
+                  <span>Delivery fee:</span>
+                  <span>Free 🎉</span>
+                </div>
+              )}
             </div>
 
             <div className="rounded-lg bg-brand/10 p-4 border border-brand/20">

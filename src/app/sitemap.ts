@@ -59,7 +59,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   try {
     // Get all products for dynamic URLs - split into pages of 40,000 max
     const products = await query<Product[]>(
-      `SELECT id, updated_at, featured FROM products ORDER BY featured DESC, updated_at DESC LIMIT 10000`,
+      `SELECT id, updated_at, featured FROM products WHERE store_id = 0 ORDER BY featured DESC, updated_at DESC LIMIT 10000`,
     );
 
     const productPages: MetadataRoute.Sitemap = products.map((product) => ({

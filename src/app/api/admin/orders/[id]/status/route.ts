@@ -4,14 +4,18 @@ import { sendOrderStatusChangedEmails } from "@/lib/email";
 import { createUserNotification } from "@/lib/notifications";
 import { orderStatusSchema } from "@/lib/validation";
 import { toId } from "@/lib/utils";
-import { requireAdminApi } from "@/lib/authz";
+import { requireStoreOrAdminApi } from "@/lib/authz";
+import { validateSameOrigin } from "@/lib/request-security";
 
 type Params = {
   params: Promise<{ id: string }>;
 };
 
 export async function PATCH(request: Request, { params }: Params) {
-  const access = await requireAdminApi();
+  const originError = validateSameOrigin(request);
+  if (originError) return originError;
+
+  const access = await requireStoreOrAdminApi();
   if ("error" in access) {
     return NextResponse.json({ error: access.error }, { status: access.status });
   }
@@ -22,6 +26,17 @@ export async function PATCH(request: Request, { params }: Params) {
     return NextResponse.json({ error: "Invalid order id" }, { status: 400 });
   }
 
+  // Check store ownership for store owners
+  if (!access.isSuperAdmin) {
+    const existing = await query<Array<{ store_id: number }>>(
+      "SELECT store_id FROM orders WHERE id = ?",
+      [orderId]
+    );
+    if (!existing.length || !access.userStoreIds.includes(existing[0].store_id)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+  }
+
   const payload = await request.json().catch(() => null);
   const parsed = orderStatusSchema.safeParse(payload);
 
@@ -30,8 +45,8 @@ export async function PATCH(request: Request, { params }: Params) {
   }
 
   try {
-    const rows = await query<Array<{ user_id: number; status: string; customer_name: string; customer_email: string; public_order_id: string }>>(
-      "SELECT user_id, status, customer_name, customer_email, public_order_id FROM orders WHERE id = ? LIMIT 1",
+    const rows = await query<Array<{ user_id: number; order_status: string; status: string; customer_name: string; customer_email: string; public_order_id: string }>>(
+      "SELECT user_id, order_status, status, customer_name, customer_email, public_order_id FROM orders WHERE id = ? LIMIT 1",
       [orderId],
     );
 
@@ -40,11 +55,12 @@ export async function PATCH(request: Request, { params }: Params) {
     }
 
     await query(
-      "UPDATE orders SET status = ?, received_confirmed_at = CASE WHEN ? = 'Delivered' THEN received_confirmed_at ELSE NULL END WHERE id = ?",
-      [parsed.data.status, parsed.data.status, orderId],
+      "UPDATE orders SET order_status = ?, status = ?, received_confirmed_at = CASE WHEN ? = 'Delivered' THEN received_confirmed_at ELSE NULL END WHERE id = ?",
+      [parsed.data.status, parsed.data.status, parsed.data.status, orderId],
     );
 
-    if (rows[0].status !== parsed.data.status) {
+    const currentStatus = rows[0].order_status || rows[0].status;
+    if (currentStatus !== parsed.data.status) {
       await createUserNotification(rows[0].user_id, {
         type: "order",
         title: `Order ${rows[0].public_order_id} status updated`,

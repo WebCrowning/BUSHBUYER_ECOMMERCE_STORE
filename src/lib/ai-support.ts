@@ -20,7 +20,7 @@ async function getCatalogItems(): Promise<CatalogItem[]> {
     return await query<CatalogItem[]>(
       `SELECT name, category, price, package_name AS packageName, unit_type AS unitType, unit_value AS unitValue
        FROM products
-       WHERE stock_packages > 0
+       WHERE store_id = 0 AND stock_packages > 0
        ORDER BY featured DESC, created_at DESC
        LIMIT 20`,
     );
@@ -244,7 +244,7 @@ export async function generateSupportAiReply(
     method: "POST",
     headers: {
       Authorization: `Bearer ${env.openrouterApiKey}`,
-      "HTTP-Referer": "http://localhost:3000",
+      "HTTP-Referer": env.siteUrl,
       "X-Title": "Bushbuyer Support",
       "Content-Type": "application/json",
     },

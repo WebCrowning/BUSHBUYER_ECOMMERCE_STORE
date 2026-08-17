@@ -13,14 +13,14 @@ type ConversationRow = {
   assigned_admin_id: number | null;
 };
 
-function isPrivilegedAdmin(role: string, email: string) {
+function isPrivilegedAdmin(role: string, _email: string) {
   const normalizedRole = role?.toLowerCase?.() ?? "";
-  if (normalizedRole === "admin" || normalizedRole === "sub_admin") {
-    return true;
-  }
-
-  const allowedEmail = (process.env.ADMIN_LOGIN_EMAIL ?? "").trim().toLowerCase();
-  return Boolean(allowedEmail) && email.toLowerCase() === allowedEmail;
+  return (
+    normalizedRole === "admin" ||
+    normalizedRole === "sub_admin" ||
+    normalizedRole === "super_admin" ||
+    normalizedRole === "platform_admin"
+  );
 }
 
 export async function POST(

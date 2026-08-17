@@ -63,6 +63,10 @@ type PayPalButtonProps = {
   address: string;
   country: string;
   total: number;
+  deliveryMethodId?: number;
+  deliveryFee?: number;
+  deliveryNotes?: string;
+  deliveryDataJson?: string;
   onSuccess: (orderId: string) => void;
   onError: (message: string) => void;
   disabled?: boolean;
@@ -76,6 +80,10 @@ export function PayPalButton({
   address,
   country,
   total,
+  deliveryMethodId,
+  deliveryFee,
+  deliveryNotes,
+  deliveryDataJson,
   onSuccess,
   onError,
   disabled = false,
@@ -220,6 +228,10 @@ export function PayPalButton({
                 phone,
                 address,
                 country,
+                delivery_method_id: deliveryMethodId,
+                delivery_fee: deliveryFee,
+                delivery_notes: deliveryNotes,
+                delivery_data_json: deliveryDataJson,
               }),
             });
 

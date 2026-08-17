@@ -89,12 +89,35 @@ function HeaderActionsInner() {
               </span>
             ) : null}
           </Link>
-          <Link
-            href={dashboardHref}
-            className="hidden rounded-full border border-white/30 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/10 md:inline-flex"
-          >
-            {isAdmin ? "Admin" : "Dashboard"}
-          </Link>
+          {isAdmin ? (
+            <Link
+              href="/admin"
+              className="hidden rounded-full border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-slate-700 md:inline-flex"
+            >
+              Admin Portal
+            </Link>
+          ) : (session?.user as { storeIds?: number[] })?.storeIds?.length ? (
+            <Link
+              href="/seller/dashboard"
+              className="hidden rounded-full border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-sm font-bold text-emerald-400 transition-colors hover:bg-emerald-500/20 md:inline-flex"
+            >
+              Store Portal
+            </Link>
+          ) : (session?.user as { referredStoreSlug?: string })?.referredStoreSlug ? (
+            <Link
+              href={`/store/${(session.user as { referredStoreSlug?: string }).referredStoreSlug}`}
+              className="hidden rounded-full border border-sky-500/40 bg-sky-500/10 px-4 py-2 text-sm font-bold text-sky-300 transition-colors hover:bg-sky-500/20 md:inline-flex"
+            >
+              My Preferred Store
+            </Link>
+          ) : (
+            <Link
+              href="/dashboard"
+              className="hidden rounded-full border border-white/30 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/10 md:inline-flex"
+            >
+              Dashboard
+            </Link>
+          )}
           <button
             type="button"
             onClick={() => signOut({ callbackUrl: "/" })}

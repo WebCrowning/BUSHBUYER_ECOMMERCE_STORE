@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { signOut } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import {
   Bell,
@@ -20,29 +20,41 @@ import {
   UserCog,
   Shield,
   Sparkles,
+  Store,
+  Wallet,
+  KeyRound,
+  UserPlus,
+  CreditCard,
+  Tag,
   type LucideIcon,
 } from "lucide-react";
 
-const adminNavItems = [
-  { href: "/admin/notifications", label: "Notifications", icon: Bell },
-  { href: "/admin", label: "Overview", icon: LayoutDashboard },
-  { href: "/admin/products", label: "Products", icon: Package },
-  { href: "/admin/inventory", label: "Inventory", icon: Boxes },
-  { href: "/admin/orders", label: "Orders", icon: ShoppingCart },
-  { href: "/admin/traffic", label: "Traffic Analytics", icon: BarChart3 },
-  { href: "/admin/messages", label: "Messages", icon: Mail },
-  { href: "/admin/messages/manage", label: "Message Retention", icon: ShieldCheck },
-  { href: "/admin/chat", label: "Live Chat", icon: MessageSquare },
-  { href: "/admin/content", label: "Page Content", icon: FileText },
-  { href: "/admin/faq", label: "FAQ", icon: CircleHelp },
-  { href: "/admin/users", label: "Users", icon: Users },
-  { href: "/admin/sub-admins", label: "Sub-Admins", icon: UserCog },
+const allAdminNavItems = [
+  { href: "/admin/notifications", label: "Notifications", icon: Bell, superOnly: false },
+  { href: "/admin", label: "Overview", icon: LayoutDashboard, superOnly: false },
+  { href: "/admin/stores", label: "Stores", icon: Store, superOnly: true },
+  { href: "/admin/products", label: "Products", icon: Package, superOnly: false },
+  { href: "/admin/categories", label: "Categories", icon: Tag, superOnly: true },
+  { href: "/admin/inventory", label: "Inventory", icon: Boxes, superOnly: false },
+  { href: "/admin/orders", label: "Orders", icon: ShoppingCart, superOnly: false },
+  { href: "/admin/payments", label: "Payments & Revenue", icon: CreditCard, superOnly: true },
+  { href: "/admin/wallets", label: "Wallets & Payouts", icon: Wallet, superOnly: false },
+  { href: "/admin/traffic", label: "Traffic Analytics", icon: BarChart3, superOnly: false },
+  { href: "/admin/messages", label: "Messages", icon: Mail, superOnly: false },
+  { href: "/admin/messages/manage", label: "Message Retention", icon: ShieldCheck, superOnly: true },
+  { href: "/admin/chat", label: "Live Chat", icon: MessageSquare, superOnly: false },
+  { href: "/admin/content", label: "Page Content", icon: FileText, superOnly: true },
+  { href: "/admin/faq", label: "FAQ", icon: CircleHelp, superOnly: false },
+  { href: "/admin/users", label: "Users & Customers", icon: Users, superOnly: false },
+  { href: "/admin/sub-admins", label: "Sub-Admins", icon: UserCog, superOnly: true },
+  { href: "/admin/roles", label: "Roles & Permissions", icon: KeyRound, superOnly: true },
 ];
 
 type AdminNavItem = {
   href: string;
   label: string;
   icon: LucideIcon;
+  superOnly?: boolean;
 };
 
 type AdminNavbarProps = {
@@ -52,8 +64,32 @@ type AdminNavbarProps = {
 
 export function AdminNavbar({ renderMobile = true, renderDesktop = true }: AdminNavbarProps) {
   const pathname = usePathname();
+  const { data: session } = useSession();
   const [unreadCount, setUnreadCount] = useState(0);
-  const navItems = adminNavItems as AdminNavItem[];
+
+  const userRole = (session?.user as { role?: string })?.role || "user";
+  const userStoreIds = (session?.user as { storeIds?: number[] })?.storeIds || [];
+  const primaryStoreId = userStoreIds[0];
+
+  const isSuperAdmin =
+    userRole === "super_admin" ||
+    userRole === "platform_admin" ||
+    userRole === "admin" ||
+    userRole === "sub_admin";
+
+  let navItems: AdminNavItem[] = allAdminNavItems.filter(
+    (item) => isSuperAdmin || !item.superOnly
+  );
+
+  // If user is a store owner/manager and not super admin, add Store Staff link
+  if (!isSuperAdmin && primaryStoreId) {
+    navItems = [
+      ...navItems.slice(0, 2),
+      { href: `/admin/stores/${primaryStoreId}/users`, label: "Store Staff & Users", icon: UserPlus },
+      ...navItems.slice(2),
+    ];
+  }
+
   const currentItem =
     navItems.find((item) => pathname === item.href)?.label ?? "Overview";
 
@@ -156,11 +192,11 @@ export function AdminNavbar({ renderMobile = true, renderDesktop = true }: Admin
           <p className="text-[0.65rem] font-bold uppercase tracking-[0.18em] text-slate-400">Account</p>
           <p className="mt-1 inline-flex items-center gap-2 text-sm font-extrabold text-white">
             <Shield size={14} className="text-brand" />
-            Admin
+            {isSuperAdmin ? "Super Admin" : "Store Owner"}
           </p>
           <p className="inline-flex items-center gap-1.5 text-xs text-slate-400">
             <Sparkles size={12} className="text-slate-500" />
-            Control center
+            {isSuperAdmin ? "Global Control Center" : "Store Admin Dashboard"}
           </p>
         </div>
 

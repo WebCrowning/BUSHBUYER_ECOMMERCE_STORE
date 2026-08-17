@@ -14,7 +14,7 @@ export async function GET(): Promise<Response> {
   try {
     // Get all unique categories
     const categories = await query<Category[]>(
-      `SELECT DISTINCT category FROM products WHERE category IS NOT NULL AND category != '' ORDER BY category ASC`,
+      `SELECT DISTINCT category FROM products WHERE store_id = 0 AND category IS NOT NULL AND category != '' ORDER BY category ASC`,
     );
 
     const xml = `<?xml version="1.0" encoding="UTF-8"?>

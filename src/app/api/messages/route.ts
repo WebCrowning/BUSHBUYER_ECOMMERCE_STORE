@@ -3,8 +3,12 @@ import { auth } from "@/auth";
 import { query } from "@/lib/db";
 import { createAdminNotification } from "@/lib/notifications";
 import { messageSchema } from "@/lib/validation";
+import { validateSameOrigin } from "@/lib/request-security";
 
 export async function POST(request: Request) {
+  const originError = validateSameOrigin(request);
+  if (originError) return originError;
+
   const session = await auth();
   const payload = await request.json().catch(() => null);
   const parsed = messageSchema.safeParse(payload);

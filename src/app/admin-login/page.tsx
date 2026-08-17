@@ -31,14 +31,12 @@ function AdminLoginForm() {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  // If user is already authenticated as admin/sub_admin, redirect to /admin
+  // If user is already authenticated as any admin role, redirect to /admin
   useEffect(() => {
     if (status === "authenticated" && session?.user) {
-      const userRole = (session.user as { role?: string }).role;
-      const userEmail = session.user.email?.toLowerCase();
-      const isAdminRole = userRole === "admin" || userRole === "sub_admin";
-
-      if (isAdminRole) {
+      const userRole = (session.user as { role?: string }).role ?? "";
+      const adminRoles = ["admin", "sub_admin", "super_admin", "platform_admin", "finance_admin"];
+      if (adminRoles.includes(userRole)) {
         router.push("/admin");
       }
     }
@@ -67,6 +65,12 @@ function AdminLoginForm() {
       return {
         title: "Access Denied",
         message: "You do not have permission to access the administrative portal.",
+      };
+    }
+    if (param === "RateLimitExceeded" || param === "TooManyRequests") {
+      return {
+        title: "Too Many Attempts",
+        message: "Too many failed login attempts. Please wait 15 minutes before trying again.",
       };
     }
     return {

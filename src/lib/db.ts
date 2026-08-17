@@ -1,5 +1,4 @@
 import mysql from "mysql2/promise";
-import { createHash } from "crypto";
 import { env } from "@/lib/env";
 import { defaultPageContent } from "@/lib/page-content";
 
@@ -26,6 +25,7 @@ const pool = mysql.createPool({
   connectionLimit: 10,
   queueLimit: 0,
   enableKeepAlive: true,
+  decimalNumbers: true,
 });
 
 let schemaInitPromise: Promise<void> | null = null;
@@ -82,7 +82,7 @@ async function ensurePackageSchema() {
           email VARCHAR(190) NOT NULL UNIQUE,
           image TEXT NULL,
           provider VARCHAR(80) NOT NULL,
-          role ENUM('user','admin','sub_admin') DEFAULT 'user',
+          role VARCHAR(50) DEFAULT 'user',
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )`,
       );
@@ -311,28 +311,22 @@ async function ensurePackageSchema() {
         );
       }
 
-      // Ensure at least one admin user exists in users table with a valid password_hash
-      const [adminRows] = await pool.query<mysql.RowDataPacket[]>(
-        "SELECT id, password_hash FROM users WHERE role IN ('admin', 'sub_admin') LIMIT 1",
-      );
-
-      const defaultAdminHash = createHash("sha256").update("admin123").digest("hex");
-
-      if (adminRows.length === 0) {
+      const hasReferredByStore = await hasColumn("users", "referred_by_store_id");
+      if (!hasReferredByStore) {
         await pool.execute(
-          `INSERT INTO users (name, email, provider, role, password_hash)
-           VALUES ('Admin', 'admin@bushbuyer.com', 'credentials', 'admin', ?)`,
-          [defaultAdminHash],
+          "ALTER TABLE users ADD COLUMN referred_by_store_id INT NULL",
         );
-      } else {
-        const firstAdmin = adminRows[0];
-        if (!firstAdmin.password_hash) {
-          await pool.execute(
-            "UPDATE users SET password_hash = ? WHERE id = ?",
-            [defaultAdminHash, firstAdmin.id],
-          );
-        }
       }
+
+      try {
+        await pool.execute("ALTER TABLE users MODIFY COLUMN role VARCHAR(50) DEFAULT 'user'");
+      } catch {
+        // Ignore if role modification fails
+      }
+
+      // Do NOT seed default admin credentials.
+      // Run: node scripts/set-admin-password.js admin@example.com <password>
+      // to create the first admin account securely with bcrypt hashing.
     })().catch((error) => {
       console.warn("Schema initialization warning (non-fatal):", error);
       schemaInitPromise = Promise.resolve();

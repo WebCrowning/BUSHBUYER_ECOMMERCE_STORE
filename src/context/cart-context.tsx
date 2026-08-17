@@ -41,6 +41,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         setItems(
           parsed.map((item) => ({
             productId: Number(item.productId ?? 0),
+            storeId: item.storeId ? Number(item.storeId) : 1,
+            storeName: item.storeName ? String(item.storeName) : "Flagship Store",
             name: String(item.name ?? ""),
             price: Number(item.price ?? 0),
             transportFee: Number(item.transportFee ?? 0),
@@ -98,6 +100,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         ...prev,
         {
           productId: product.id,
+          storeId: product.storeId || 1,
+          storeName: product.storeName || "Flagship Store",
           name: product.name,
           price: Number(product.price),
           transportFee: Number(product.transportFee ?? 0),

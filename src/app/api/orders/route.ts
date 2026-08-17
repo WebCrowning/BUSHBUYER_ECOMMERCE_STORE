@@ -5,6 +5,7 @@ import { sendOrderCreatedEmails } from "@/lib/email";
 import { createAdminNotification } from "@/lib/notifications";
 import { generateOrderReference } from "@/lib/order-reference";
 import { orderSchema } from "@/lib/validation";
+import { validateSameOrigin } from "@/lib/request-security";
 import type { Order, OrderItem } from "@/types";
 
 type DbInsert = {
@@ -79,6 +80,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const originError = validateSameOrigin(request);
+  if (originError) return originError;
+
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

@@ -59,7 +59,7 @@ export default function AdminProductsPage() {
   const zoomSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   async function loadProducts() {
-    const response = await fetch("/api/admin/products");
+    const response = await fetch("/api/admin/products?store_id=0");
     const payload = (await response.json()) as { products: Product[]; categories?: string[] };
     setProducts(payload.products ?? []);
 
@@ -68,25 +68,32 @@ export default function AdminProductsPage() {
 
     function addCategory(raw: string) {
       const normalized = normalizeCategory(String(raw ?? ""));
-      if (!normalized) {
-        return;
-      }
-
+      if (!normalized) return;
       const key = normalized.toLowerCase();
-      if (!categoryMap.has(key)) {
-        categoryMap.set(key, normalized);
-      }
+      if (!categoryMap.has(key)) categoryMap.set(key, normalized);
     }
 
-    for (const category of payload.categories ?? []) {
-      addCategory(category);
-    }
-
-    for (const product of payload.products ?? []) {
-      addCategory(product.category);
-    }
+    for (const category of payload.categories ?? []) { addCategory(category); }
+    for (const product of payload.products ?? []) { addCategory(product.category); }
 
     setCategoryOptions(Array.from(categoryMap.values()).sort((a, b) => a.localeCompare(b)));
+
+    // Always refresh from the global categories table — it's the authoritative source
+    try {
+      const catRes = await fetch("/api/admin/categories");
+      if (catRes.ok) {
+        const catData = await catRes.json();
+        const names: string[] = (catData.categories ?? []).map((c: { name: string }) => c.name);
+        if (names.length > 0) {
+          setCategoryOptions((prev) => {
+            const merged = new Map<string, string>();
+            for (const n of prev) merged.set(n.toLowerCase(), n);
+            for (const n of names) merged.set(n.toLowerCase(), n);
+            return Array.from(merged.values()).sort((a, b) => a.localeCompare(b));
+          });
+        }
+      }
+    } catch { /* non-fatal */ }
   }
 
   async function loadUploadedImages() {
@@ -257,7 +264,7 @@ export default function AdminProductsPage() {
       const response = await fetch("/api/admin/products/categories", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ category, reassignTo: "General" }),
+        body: JSON.stringify({ category, reassignTo: "General", storeId: 0 }),
       });
 
       const payload = (await response.json().catch(() => null)) as
@@ -312,6 +319,7 @@ export default function AdminProductsPage() {
       unitType: form.unitType,
       unitValue: Number(form.unitValue),
       stockPackages: Number(form.stockPackages),
+      storeId: 0,
     };
 
     const endpoint = editingId ? `/api/admin/products/${editingId}` : "/api/admin/products";
