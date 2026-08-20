@@ -136,6 +136,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           if (refCookie) {
             referredByStoreId = parseInt(refCookie, 10) || null;
           }
+          if (!referredByStoreId) {
+            const refSlugCookie = cookieStore.get("ref_store_slug")?.value;
+            if (refSlugCookie) {
+              const store = await StoreRepository.findBySlug(refSlugCookie);
+              if (store) {
+                referredByStoreId = store.id;
+              }
+            }
+          }
         } catch {
           // Ignore header error outside request scope
         }

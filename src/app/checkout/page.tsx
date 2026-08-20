@@ -9,7 +9,7 @@ import { SiteHeader } from "@/components/site-header";
 import { PayPalButton } from "@/components/paypal-button";
 import { DeliveryMethodSelector } from "@/components/delivery/delivery-method-selector";
 import { useCart } from "@/context/cart-context";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatPrice } from "@/lib/utils";
 import { AlertCircle, CheckCircle, CreditCard, Smartphone } from "lucide-react";
 import type { CustomerDeliveryDetails } from "@/types/delivery";
 
@@ -56,7 +56,7 @@ function validateCountryCode(code: string): boolean {
 
 export default function CheckoutPage() {
   const { data: session } = useSession();
-  const { items, subtotal, clearCart } = useCart();
+  const { items, subtotal, clearCart, currency, setCurrency } = useCart();
   const [error, setError] = useState<string | null>(null);
   const [stockIssues, setStockIssues] = useState<StockValidationEntry[]>([]);
   const [checkingStock, setCheckingStock] = useState(false);
@@ -112,6 +112,7 @@ export default function CheckoutPage() {
     deliveryNote: "",
     country: "",
   });
+
   const [touched, setTouched] = useState<Record<FormField, boolean>>({
     customerName: false,
     customerEmail: false,
@@ -233,14 +234,16 @@ export default function CheckoutPage() {
 
         const availableById = new Map<number, number>();
         for (const product of payload?.products ?? []) {
-          availableById.set(Number(product.id), Number(product.stockPackages ?? 0));
+          if (typeof product.id === "number" && typeof product.stockPackages === "number") {
+            availableById.set(product.id, product.stockPackages);
+          }
         }
 
-        const issues: StockValidationEntry[] = [];
+        const nextIssues: StockValidationEntry[] = [];
         for (const item of items) {
-          const available = Number(availableById.get(item.productId) ?? 0);
-          if (item.quantityPackages > available) {
-            issues.push({
+          const available = availableById.get(item.productId);
+          if (typeof available === "number" && item.quantityPackages > available) {
+            nextIssues.push({
               productId: item.productId,
               name: item.name,
               requested: item.quantityPackages,
@@ -249,9 +252,9 @@ export default function CheckoutPage() {
           }
         }
 
-        setStockIssues(issues);
+        setStockIssues(nextIssues);
       } catch {
-        // Keep checkout usable if stock validation endpoint is temporarily unavailable.
+        setStockIssues([]);
       } finally {
         if (active) {
           setCheckingStock(false);
@@ -265,6 +268,45 @@ export default function CheckoutPage() {
       active = false;
     };
   }, [items]);
+
+  const deliveryCode = deliveryDetails?.delivery_code || "local_delivery";
+
+  const fieldErrors: Record<FormField, string> = useMemo(() => {
+    const isPickupOrDigital = deliveryCode === "store_pickup" || deliveryCode === "digital_delivery";
+    const isLocal = deliveryCode === "local_delivery";
+
+    return {
+      customerName: form.customerName.trim() ? "" : "Full name is required",
+      customerEmail: !form.customerEmail.trim()
+        ? "Email address is required"
+        : validateEmail(form.customerEmail)
+          ? ""
+          : "Enter a valid email address",
+      phoneCountryCode: !form.phoneCountryCode.trim()
+        ? "Country code is required"
+        : validateCountryCode(form.phoneCountryCode)
+          ? ""
+          : "Use format like +237",
+      phone: !form.phone.trim()
+        ? "Phone number is required"
+        : validatePhoneNumber(form.phone)
+          ? ""
+          : "Enter a valid phone number",
+      addressLine1: isPickupOrDigital
+        ? ""
+        : !form.addressLine1.trim()
+          ? "Address/Quarter is required"
+          : form.addressLine1.trim().length >= 3
+            ? ""
+            : "Address/Quarter must be at least 3 characters",
+      addressLine2: "",
+      city: isPickupOrDigital ? "" : form.city.trim() ? "" : "City is required",
+      stateProvince: isPickupOrDigital || isLocal ? "" : form.stateProvince.trim() ? "" : "State/Province/Region is required",
+      postalCode: isPickupOrDigital || isLocal ? "" : form.postalCode.trim() ? "" : "Postal code is required",
+      deliveryNote: "",
+      country: isPickupOrDigital || isLocal ? "" : form.country.trim() ? "" : "Country is required",
+    };
+  }, [form, deliveryCode]);
 
   const handlePaymentSuccess = (orderId: string) => {
     clearCart();
@@ -329,40 +371,6 @@ export default function CheckoutPage() {
       setFapshiLoading(false);
     }
   };
-
-  const fieldErrors: Record<FormField, string> = useMemo(() => ({
-    customerName: form.customerName.trim() ? "" : "Full name is required",
-    customerEmail: !form.customerEmail.trim()
-      ? "Email address is required"
-      : validateEmail(form.customerEmail)
-        ? ""
-        : "Enter a valid email address",
-    phoneCountryCode: !form.phoneCountryCode.trim()
-      ? "Country code is required"
-      : validateCountryCode(form.phoneCountryCode)
-        ? ""
-        : "Use format like +237",
-    phone: !form.phone.trim()
-      ? "Phone number is required"
-      : validatePhoneNumber(form.phone)
-        ? ""
-        : "Enter a valid phone number",
-    addressLine1: !form.addressLine1.trim()
-      ? "Address line 1 is required"
-      : form.addressLine1.trim().length >= 5
-        ? ""
-        : "Address line 1 must be at least 5 characters",
-    addressLine2: "",
-    city: form.city.trim() ? "" : "City is required",
-    stateProvince: form.stateProvince.trim() ? "" : "State/Province/Region is required",
-    postalCode: !form.postalCode.trim()
-      ? "Postal/ZIP code is required"
-      : form.postalCode.trim().length >= 3
-        ? ""
-        : "Postal/ZIP code looks too short",
-    deliveryNote: "",
-    country: form.country.trim() ? "" : "Country is required",
-  }), [form]);
 
   const isFormValid = Object.values(fieldErrors).every((value) => !value);
   const hasValidationErrors = Object.values(touched).some(Boolean) && !isFormValid;
@@ -692,257 +700,279 @@ export default function CheckoutPage() {
         <div className="grid gap-8 lg:grid-cols-[1fr_380px]">
           {/* Main Checkout Form */}
           <section className="rounded-2xl border border-border/50 bg-white p-8 shadow-sm">
-            <div className="mb-6 flex items-center justify-between gap-3">
-              <h2 className="text-2xl font-bold text-brand-deep">Delivery Information</h2>
-              <span className="rounded-full bg-surface-soft px-3 py-1 text-xs font-semibold text-foreground/70">Required fields *</span>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <label htmlFor="customerName" className="text-sm font-semibold text-foreground/70">
-                  Full Name *
-                </label>
-                <input
-                  id="customerName"
-                  type="text"
-                  autoComplete="name"
-                  placeholder="Enter your full name"
-                  value={form.customerName}
-                  onChange={(e) =>
-                    setForm((v) => ({ ...v, customerName: e.target.value }))
-                  }
-                  onBlur={() => setTouched((prev) => ({ ...prev, customerName: true }))}
-                  aria-invalid={Boolean(touched.customerName && fieldErrors.customerName)}
-                  className={inputClass(Boolean(touched.customerName && fieldErrors.customerName))}
-                />
-                {touched.customerName && fieldErrors.customerName && (
-                  <p className="mt-1 text-xs font-medium text-red-600">{fieldErrors.customerName}</p>
-                )}
-              </div>
-
-              <div>
-                <label htmlFor="customerEmail" className="text-sm font-semibold text-foreground/70">
-                  Email Address *
-                </label>
-                <input
-                  id="customerEmail"
-                  type="email"
-                  autoComplete="email"
-                  placeholder="your@email.com"
-                  value={form.customerEmail}
-                  onChange={(e) =>
-                    setForm((v) => ({ ...v, customerEmail: e.target.value }))
-                  }
-                  onBlur={() => setTouched((prev) => ({ ...prev, customerEmail: true }))}
-                  aria-invalid={Boolean(touched.customerEmail && fieldErrors.customerEmail)}
-                  className={inputClass(Boolean(touched.customerEmail && fieldErrors.customerEmail))}
-                />
-                {touched.customerEmail && fieldErrors.customerEmail && (
-                  <p className="mt-1 text-xs font-medium text-red-600">{fieldErrors.customerEmail}</p>
-                )}
-              </div>
-
-              <div>
-                <label htmlFor="phone" className="text-sm font-semibold text-foreground/70">
-                  Phone Number *
-                </label>
-                <div className="mt-1 grid grid-cols-[120px_1fr] gap-2">
-                  <input
-                    id="phoneCountryCode"
-                    type="text"
-                    inputMode="tel"
-                    list="dialing-code-options"
-                    placeholder="+237"
-                    value={form.phoneCountryCode}
-                    onChange={(e) =>
-                      setForm((v) => ({ ...v, phoneCountryCode: e.target.value }))
-                    }
-                    onBlur={() => setTouched((prev) => ({ ...prev, phoneCountryCode: true }))}
-                    aria-invalid={Boolean(touched.phoneCountryCode && fieldErrors.phoneCountryCode)}
-                    className={inputClass(Boolean(touched.phoneCountryCode && fieldErrors.phoneCountryCode))}
-                  />
-                  <datalist id="dialing-code-options">
-                    {dialingCodeOptions.map((code) => (
-                      <option key={code} value={code}>
-                        {code}
-                      </option>
-                    ))}
-                  </datalist>
-                  <input
-                    id="phone"
-                    type="tel"
-                    autoComplete="tel-national"
-                    inputMode="tel"
-                    placeholder="e.g. 677123456"
-                    value={form.phone}
-                    onChange={(e) =>
-                      setForm((v) => ({ ...v, phone: e.target.value }))
-                    }
-                    onBlur={() => setTouched((prev) => ({ ...prev, phone: true }))}
-                    aria-invalid={Boolean(touched.phone && fieldErrors.phone)}
-                    className={inputClass(Boolean(touched.phone && fieldErrors.phone))}
-                  />
-                </div>
-                {(touched.phoneCountryCode && fieldErrors.phoneCountryCode) || (touched.phone && fieldErrors.phone) ? (
-                  <p className="mt-1 text-xs font-medium text-red-600">
-                    {fieldErrors.phoneCountryCode || fieldErrors.phone}
-                  </p>
-                ) : (
-                  <p className="mt-1 text-xs text-foreground/55">Example: {form.phoneCountryCode} 677123456</p>
-                )}
-              </div>
-
-              <div>
-                <label htmlFor="country" className="text-sm font-semibold text-foreground/70">
-                  Country *
-                </label>
-                <select
-                  id="country"
-                  autoComplete="country-name"
-                  value={form.country}
-                  onChange={(e) =>
-                    setForm((v) => ({ ...v, country: e.target.value }))
-                  }
-                  onBlur={() => setTouched((prev) => ({ ...prev, country: true }))}
-                  aria-invalid={Boolean(touched.country && fieldErrors.country)}
-                  className={inputClass(Boolean(touched.country && fieldErrors.country))}
-                >
-                  <option value="">Select country</option>
-                  {countryOptions.map((country) => (
-                    <option key={country} value={country}>
-                      {country}
-                    </option>
-                  ))}
-                </select>
-                {touched.country && fieldErrors.country && (
-                  <p className="mt-1 text-xs font-medium text-red-600">{fieldErrors.country}</p>
-                )}
-              </div>
-
-              <div className="md:col-span-2">
-                <label htmlFor="addressLine1" className="text-sm font-semibold text-foreground/70">
-                  Address Line 1 *
-                </label>
-                <input
-                  id="addressLine1"
-                  autoComplete="address-line1"
-                  placeholder="House number and street"
-                  value={form.addressLine1}
-                  onChange={(e) =>
-                    setForm((v) => ({ ...v, addressLine1: e.target.value }))
-                  }
-                  onBlur={() => setTouched((prev) => ({ ...prev, addressLine1: true }))}
-                  aria-invalid={Boolean(touched.addressLine1 && fieldErrors.addressLine1)}
-                  className={inputClass(Boolean(touched.addressLine1 && fieldErrors.addressLine1))}
-                />
-                {touched.addressLine1 && fieldErrors.addressLine1 && (
-                  <p className="mt-1 text-xs font-medium text-red-600">{fieldErrors.addressLine1}</p>
-                )}
-              </div>
-
-              <div className="md:col-span-2">
-                <label htmlFor="addressLine2" className="text-sm font-semibold text-foreground/70">
-                  Address Line 2 <span className="text-foreground/50">(optional)</span>
-                </label>
-                <input
-                  id="addressLine2"
-                  autoComplete="address-line2"
-                  placeholder="Apartment, suite, unit, building"
-                  value={form.addressLine2}
-                  onChange={(e) =>
-                    setForm((v) => ({ ...v, addressLine2: e.target.value }))
-                  }
-                  className={inputClass(false)}
-                />
-              </div>
-
-              <div>
-                <label htmlFor="city" className="text-sm font-semibold text-foreground/70">
-                  City / Town *
-                </label>
-                <input
-                  id="city"
-                  autoComplete="address-level2"
-                  placeholder="City"
-                  value={form.city}
-                  onChange={(e) =>
-                    setForm((v) => ({ ...v, city: e.target.value }))
-                  }
-                  onBlur={() => setTouched((prev) => ({ ...prev, city: true }))}
-                  aria-invalid={Boolean(touched.city && fieldErrors.city)}
-                  className={inputClass(Boolean(touched.city && fieldErrors.city))}
-                />
-                {touched.city && fieldErrors.city && (
-                  <p className="mt-1 text-xs font-medium text-red-600">{fieldErrors.city}</p>
-                )}
-              </div>
-
-              <div>
-                <label htmlFor="stateProvince" className="text-sm font-semibold text-foreground/70">
-                  State / Province / Region *
-                </label>
-                <input
-                  id="stateProvince"
-                  autoComplete="address-level1"
-                  placeholder="State, province, or region"
-                  value={form.stateProvince}
-                  onChange={(e) =>
-                    setForm((v) => ({ ...v, stateProvince: e.target.value }))
-                  }
-                  onBlur={() => setTouched((prev) => ({ ...prev, stateProvince: true }))}
-                  aria-invalid={Boolean(touched.stateProvince && fieldErrors.stateProvince)}
-                  className={inputClass(Boolean(touched.stateProvince && fieldErrors.stateProvince))}
-                />
-                {touched.stateProvince && fieldErrors.stateProvince && (
-                  <p className="mt-1 text-xs font-medium text-red-600">{fieldErrors.stateProvince}</p>
-                )}
-              </div>
-
-              <div>
-                <label htmlFor="postalCode" className="text-sm font-semibold text-foreground/70">
-                  Postal / ZIP Code *
-                </label>
-                <input
-                  id="postalCode"
-                  autoComplete="postal-code"
-                  placeholder="Postal or ZIP code"
-                  value={form.postalCode}
-                  onChange={(e) =>
-                    setForm((v) => ({ ...v, postalCode: e.target.value }))
-                  }
-                  onBlur={() => setTouched((prev) => ({ ...prev, postalCode: true }))}
-                  aria-invalid={Boolean(touched.postalCode && fieldErrors.postalCode)}
-                  className={inputClass(Boolean(touched.postalCode && fieldErrors.postalCode))}
-                />
-                {touched.postalCode && fieldErrors.postalCode && (
-                  <p className="mt-1 text-xs font-medium text-red-600">{fieldErrors.postalCode}</p>
-                )}
-              </div>
-
-              <div className="md:col-span-2">
-                <label htmlFor="deliveryNote" className="text-sm font-semibold text-foreground/70">
-                  Delivery Note / Landmark <span className="text-foreground/50">(optional)</span>
-                </label>
-                <textarea
-                  id="deliveryNote"
-                  placeholder="Landmark, gate code, or delivery instructions"
-                  value={form.deliveryNote}
-                  onChange={(e) =>
-                    setForm((v) => ({ ...v, deliveryNote: e.target.value }))
-                  }
-                  className={`${inputClass(false)} min-h-24 resize-none`}
-                />
-              </div>
-            </div>
-
-            {/* === MODULAR DELIVERY METHOD SELECTOR === */}
-            <div className="mt-8 border-t border-border/30 pt-8">
-              <h3 className="text-lg font-bold text-brand-deep mb-4">Delivery Method</h3>
+            {/* Delivery Method Selector First */}
+            <div className="mb-8">
+              <h2 className="text-xl font-bold text-brand-deep mb-4">Delivery Method</h2>
               <DeliveryMethodSelector
                 storeId={primaryStoreId}
                 cartSubtotal={subtotal}
                 onChange={handleDeliveryChange}
               />
+            </div>
+
+            {/* Address & Contact Information */}
+            <div className="border-t border-border/30 pt-6">
+              <div className="mb-6 flex items-center justify-between gap-3">
+                <h2 className="text-xl font-bold text-brand-deep">
+                  {deliveryCode === "store_pickup"
+                    ? "Pickup Contact Info"
+                    : deliveryCode === "digital_delivery"
+                      ? "Recipient Information"
+                      : "Delivery Address"}
+                </h2>
+                <span className="rounded-full bg-surface-soft px-3 py-1 text-xs font-semibold text-foreground/70">
+                  Required fields *
+                </span>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label htmlFor="customerName" className="text-sm font-semibold text-foreground/70">
+                    Full Name *
+                  </label>
+                  <input
+                    id="customerName"
+                    type="text"
+                    autoComplete="name"
+                    placeholder="Enter your full name"
+                    value={form.customerName}
+                    onChange={(e) =>
+                      setForm((v) => ({ ...v, customerName: e.target.value }))
+                    }
+                    onBlur={() => setTouched((prev) => ({ ...prev, customerName: true }))}
+                    aria-invalid={Boolean(touched.customerName && fieldErrors.customerName)}
+                    className={inputClass(Boolean(touched.customerName && fieldErrors.customerName))}
+                  />
+                  {touched.customerName && fieldErrors.customerName && (
+                    <p className="mt-1 text-xs font-medium text-red-600">{fieldErrors.customerName}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label htmlFor="customerEmail" className="text-sm font-semibold text-foreground/70">
+                    Email Address *
+                  </label>
+                  <input
+                    id="customerEmail"
+                    type="email"
+                    autoComplete="email"
+                    placeholder="your@email.com"
+                    value={form.customerEmail}
+                    onChange={(e) =>
+                      setForm((v) => ({ ...v, customerEmail: e.target.value }))
+                    }
+                    onBlur={() => setTouched((prev) => ({ ...prev, customerEmail: true }))}
+                    aria-invalid={Boolean(touched.customerEmail && fieldErrors.customerEmail)}
+                    className={inputClass(Boolean(touched.customerEmail && fieldErrors.customerEmail))}
+                  />
+                  {touched.customerEmail && fieldErrors.customerEmail && (
+                    <p className="mt-1 text-xs font-medium text-red-600">{fieldErrors.customerEmail}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label htmlFor="phone" className="text-sm font-semibold text-foreground/70">
+                    Phone Number *
+                  </label>
+                  <div className="mt-1 grid grid-cols-[120px_1fr] gap-2">
+                    <input
+                      id="phoneCountryCode"
+                      type="text"
+                      inputMode="tel"
+                      list="dialing-code-options"
+                      placeholder="+237"
+                      value={form.phoneCountryCode}
+                      onChange={(e) =>
+                        setForm((v) => ({ ...v, phoneCountryCode: e.target.value }))
+                      }
+                      onBlur={() => setTouched((prev) => ({ ...prev, phoneCountryCode: true }))}
+                      aria-invalid={Boolean(touched.phoneCountryCode && fieldErrors.phoneCountryCode)}
+                      className={inputClass(Boolean(touched.phoneCountryCode && fieldErrors.phoneCountryCode))}
+                    />
+                    <datalist id="dialing-code-options">
+                      {dialingCodeOptions.map((code) => (
+                        <option key={code} value={code}>
+                          {code}
+                        </option>
+                      ))}
+                    </datalist>
+                    <input
+                      id="phone"
+                      type="tel"
+                      autoComplete="tel-national"
+                      inputMode="tel"
+                      placeholder="e.g. 677123456"
+                      value={form.phone}
+                      onChange={(e) =>
+                        setForm((v) => ({ ...v, phone: e.target.value }))
+                      }
+                      onBlur={() => setTouched((prev) => ({ ...prev, phone: true }))}
+                      aria-invalid={Boolean(touched.phone && fieldErrors.phone)}
+                      className={inputClass(Boolean(touched.phone && fieldErrors.phone))}
+                    />
+                  </div>
+                  {(touched.phoneCountryCode && fieldErrors.phoneCountryCode) || (touched.phone && fieldErrors.phone) ? (
+                    <p className="mt-1 text-xs font-medium text-red-600">
+                      {fieldErrors.phoneCountryCode || fieldErrors.phone}
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-xs text-foreground/55">Example: {form.phoneCountryCode} 677123456</p>
+                  )}
+                </div>
+
+                {/* Show address fields only if not store pickup or digital delivery */}
+                {deliveryCode !== "store_pickup" && deliveryCode !== "digital_delivery" && (
+                  <>
+                    {deliveryCode === "shipping" && (
+                      <div>
+                        <label htmlFor="country" className="text-sm font-semibold text-foreground/70">
+                          Country *
+                        </label>
+                        <select
+                          id="country"
+                          autoComplete="country-name"
+                          value={form.country}
+                          onChange={(e) =>
+                            setForm((v) => ({ ...v, country: e.target.value }))
+                          }
+                          onBlur={() => setTouched((prev) => ({ ...prev, country: true }))}
+                          aria-invalid={Boolean(touched.country && fieldErrors.country)}
+                          className={inputClass(Boolean(touched.country && fieldErrors.country))}
+                        >
+                          <option value="">Select country</option>
+                          {countryOptions.map((country) => (
+                            <option key={country} value={country}>
+                              {country}
+                            </option>
+                          ))}
+                        </select>
+                        {touched.country && fieldErrors.country && (
+                          <p className="mt-1 text-xs font-medium text-red-600">{fieldErrors.country}</p>
+                        )}
+                      </div>
+                    )}
+
+                    <div>
+                      <label htmlFor="city" className="text-sm font-semibold text-foreground/70">
+                        City / Town *
+                      </label>
+                      <input
+                        id="city"
+                        autoComplete="address-level2"
+                        placeholder="e.g. Douala, Yaoundé"
+                        value={form.city}
+                        onChange={(e) =>
+                          setForm((v) => ({ ...v, city: e.target.value }))
+                        }
+                        onBlur={() => setTouched((prev) => ({ ...prev, city: true }))}
+                        aria-invalid={Boolean(touched.city && fieldErrors.city)}
+                        className={inputClass(Boolean(touched.city && fieldErrors.city))}
+                      />
+                      {touched.city && fieldErrors.city && (
+                        <p className="mt-1 text-xs font-medium text-red-600">{fieldErrors.city}</p>
+                      )}
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label htmlFor="addressLine1" className="text-sm font-semibold text-foreground/70">
+                        {deliveryCode === "local_delivery" ? "Quarter / Street Address *" : "Address Line 1 *"}
+                      </label>
+                      <input
+                        id="addressLine1"
+                        autoComplete="address-line1"
+                        placeholder={deliveryCode === "local_delivery" ? "e.g. Akwa, Bonapriso, or street address" : "House number and street"}
+                        value={form.addressLine1}
+                        onChange={(e) =>
+                          setForm((v) => ({ ...v, addressLine1: e.target.value }))
+                        }
+                        onBlur={() => setTouched((prev) => ({ ...prev, addressLine1: true }))}
+                        aria-invalid={Boolean(touched.addressLine1 && fieldErrors.addressLine1)}
+                        className={inputClass(Boolean(touched.addressLine1 && fieldErrors.addressLine1))}
+                      />
+                      {touched.addressLine1 && fieldErrors.addressLine1 && (
+                        <p className="mt-1 text-xs font-medium text-red-600">{fieldErrors.addressLine1}</p>
+                      )}
+                    </div>
+
+                    {deliveryCode === "shipping" && (
+                      <>
+                        <div className="md:col-span-2">
+                          <label htmlFor="addressLine2" className="text-sm font-semibold text-foreground/70">
+                            Address Line 2 <span className="text-foreground/50">(optional)</span>
+                          </label>
+                          <input
+                            id="addressLine2"
+                            autoComplete="address-line2"
+                            placeholder="Apartment, suite, unit, building"
+                            value={form.addressLine2}
+                            onChange={(e) =>
+                              setForm((v) => ({ ...v, addressLine2: e.target.value }))
+                            }
+                            className={inputClass(false)}
+                          />
+                        </div>
+
+                        <div>
+                          <label htmlFor="stateProvince" className="text-sm font-semibold text-foreground/70">
+                            State / Province / Region *
+                          </label>
+                          <input
+                            id="stateProvince"
+                            autoComplete="address-level1"
+                            placeholder="State, province, or region"
+                            value={form.stateProvince}
+                            onChange={(e) =>
+                              setForm((v) => ({ ...v, stateProvince: e.target.value }))
+                            }
+                            onBlur={() => setTouched((prev) => ({ ...prev, stateProvince: true }))}
+                            aria-invalid={Boolean(touched.stateProvince && fieldErrors.stateProvince)}
+                            className={inputClass(Boolean(touched.stateProvince && fieldErrors.stateProvince))}
+                          />
+                          {touched.stateProvince && fieldErrors.stateProvince && (
+                            <p className="mt-1 text-xs font-medium text-red-600">{fieldErrors.stateProvince}</p>
+                          )}
+                        </div>
+
+                        <div>
+                          <label htmlFor="postalCode" className="text-sm font-semibold text-foreground/70">
+                            Postal / ZIP Code *
+                          </label>
+                          <input
+                            id="postalCode"
+                            autoComplete="postal-code"
+                            placeholder="Postal or ZIP code"
+                            value={form.postalCode}
+                            onChange={(e) =>
+                              setForm((v) => ({ ...v, postalCode: e.target.value }))
+                            }
+                            onBlur={() => setTouched((prev) => ({ ...prev, postalCode: true }))}
+                            aria-invalid={Boolean(touched.postalCode && fieldErrors.postalCode)}
+                            className={inputClass(Boolean(touched.postalCode && fieldErrors.postalCode))}
+                          />
+                          {touched.postalCode && fieldErrors.postalCode && (
+                            <p className="mt-1 text-xs font-medium text-red-600">{fieldErrors.postalCode}</p>
+                          )}
+                        </div>
+                      </>
+                    )}
+
+                    <div className="md:col-span-2">
+                      <label htmlFor="deliveryNote" className="text-sm font-semibold text-foreground/70">
+                        Delivery Note / Landmark <span className="text-foreground/50">(optional)</span>
+                      </label>
+                      <textarea
+                        id="deliveryNote"
+                        placeholder="Landmark, gate code, or delivery instructions"
+                        value={form.deliveryNote}
+                        onChange={(e) =>
+                          setForm((v) => ({ ...v, deliveryNote: e.target.value }))
+                        }
+                        className={`${inputClass(false)} min-h-20 resize-none`}
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
 
             {hasValidationErrors && (
@@ -972,7 +1002,12 @@ export default function CheckoutPage() {
                 <button
                   type="button"
                   id="payment-tab-paypal"
-                  onClick={() => { setPaymentMethod("paypal"); setError(null); setFapshiError(null); }}
+                  onClick={() => {
+                    setPaymentMethod("paypal");
+                    setCurrency("USD");
+                    setError(null);
+                    setFapshiError(null);
+                  }}
                   className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${
                     paymentMethod === "paypal"
                       ? "bg-white shadow-sm text-brand-deep border border-border/40"
@@ -980,12 +1015,17 @@ export default function CheckoutPage() {
                   }`}
                 >
                   <CreditCard className="h-4 w-4" />
-                  PayPal
+                  PayPal ($)
                 </button>
                 <button
                   type="button"
                   id="payment-tab-fapshi"
-                  onClick={() => { setPaymentMethod("fapshi"); setError(null); setFapshiError(null); }}
+                  onClick={() => {
+                    setPaymentMethod("fapshi");
+                    setCurrency("XAF");
+                    setError(null);
+                    setFapshiError(null);
+                  }}
                   className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${
                     paymentMethod === "fapshi"
                       ? "bg-white shadow-sm text-brand-deep border border-border/40"
@@ -993,7 +1033,7 @@ export default function CheckoutPage() {
                   }`}
                 >
                   <Smartphone className="h-4 w-4" />
-                  Mobile Money
+                  Mobile Money (CFA)
                 </button>
               </div>
 
@@ -1088,8 +1128,8 @@ export default function CheckoutPage() {
                       </div>
                     </div>
                     <div className="rounded-md bg-orange-50 border border-orange-100 px-4 py-2 text-xs text-orange-700 mb-4">
-                      Amount to pay: <span className="font-bold">{formatCurrency(grandTotal, "USD")}</span>
-                      {" "}<span className="text-orange-500">(converted to XAF at checkout)</span>
+                      Amount to pay: <span className="font-bold">{formatPrice(grandTotal, currency)}</span>
+                      {currency === "USD" ? <span className="text-orange-500"> (converted to XAF at checkout)</span> : null}
                     </div>
                     <button
                       id="fapshi-pay-btn"
@@ -1140,7 +1180,7 @@ export default function CheckoutPage() {
                     <p className="text-xs text-foreground/50">Qty: {formatQty(item.quantityPackages, item.packageName, item.unitType, item.unitValue)}</p>
                   </div>
                   <p className="font-semibold text-brand-deep flex-shrink-0">
-                    {formatCurrency(item.price * item.quantityPackages, "USD")}
+                    {formatPrice(item.price * item.quantityPackages, currency)}
                   </p>
                 </div>
               ))}
@@ -1149,16 +1189,16 @@ export default function CheckoutPage() {
             <div className="space-y-2 text-sm mb-4">
               <div className="flex justify-between text-foreground/60">
                 <span>Products subtotal:</span>
-                <span>{formatCurrency(subtotal, "USD")}</span>
+                <span>{formatPrice(subtotal, currency)}</span>
               </div>
               <div className="flex justify-between text-foreground/60">
                 <span>Transport fees:</span>
-                <span>{formatCurrency(transportTotal, "USD")}</span>
+                <span>{formatPrice(transportTotal, currency)}</span>
               </div>
               {deliveryFee > 0 && (
                 <div className="flex justify-between text-foreground/60">
                   <span>Delivery fee:</span>
-                  <span>{formatCurrency(deliveryFee, "USD")}</span>
+                  <span>{formatPrice(deliveryFee, currency)}</span>
                 </div>
               )}
               {deliveryFee === 0 && deliveryDetails && (
@@ -1174,7 +1214,7 @@ export default function CheckoutPage() {
                 Total
               </p>
               <p className="text-3xl font-bold text-brand-deep">
-                {formatCurrency(grandTotal, "USD")}
+                {formatPrice(grandTotal, currency)}
               </p>
             </div>
 

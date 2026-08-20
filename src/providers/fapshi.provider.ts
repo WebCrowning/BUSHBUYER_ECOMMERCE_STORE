@@ -79,6 +79,10 @@ export class FapshiProvider {
     }
 
     try {
+      if (signatureHeader && signatureHeader.trim() === secret.trim()) {
+        return true;
+      }
+
       const expectedSig = createHmac("sha256", secret)
         .update(rawBody, "utf8")
         .digest("hex");

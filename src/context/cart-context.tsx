@@ -58,6 +58,22 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       const savedCurrency = window.localStorage.getItem(CURRENCY_STORAGE_KEY);
       if (savedCurrency === "XAF" || savedCurrency === "USD") {
         setCurrencyState(savedCurrency);
+      } else {
+        try {
+          const tz = typeof Intl !== "undefined" && Intl.DateTimeFormat ? Intl.DateTimeFormat().resolvedOptions().timeZone || "" : "";
+          const lang = typeof navigator !== "undefined" ? navigator.language || "" : "";
+          const isCameroon =
+            tz.includes("Douala") ||
+            tz.includes("Cameroon") ||
+            lang.toLowerCase().includes("cm") ||
+            lang.toLowerCase() === "fr-cm" ||
+            lang.toLowerCase() === "en-cm";
+          if (isCameroon) {
+            setCurrencyState("XAF");
+          }
+        } catch {
+          // Default to USD
+        }
       }
     } catch {
       // Ignore storage parsing errors and keep safe defaults.

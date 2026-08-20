@@ -10,20 +10,24 @@ import SellerProductsClient from "./seller-products-client";
 export default async function SellerProductsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ new?: string }>;
+  searchParams: Promise<{ new?: string; storeId?: string }>;
 }) {
   const session = await auth();
   if (!session?.user?.id) {
     redirect("/signin");
   }
 
-  const { new: openNew } = await searchParams;
+  const { new: openNew, storeId: rawStoreId } = await searchParams;
   const autoOpenForm = openNew === "1";
+  const reqStoreId = rawStoreId ? parseInt(rawStoreId, 10) : NaN;
 
   const userId = Number(session.user.id);
   const role = (session.user as { role?: string }).role;
   const stores = await StoreRepository.getUserStores(userId);
-  const primaryStore = stores[0] || null;
+  const primaryStore =
+    (!isNaN(reqStoreId) && stores.find((s) => s.id === reqStoreId)) ||
+    stores[0] ||
+    null;
 
   if (!primaryStore) {
     return (
@@ -59,7 +63,7 @@ export default async function SellerProductsPage({
       <main className="container-shell py-8 flex-1">
         <div className="grid gap-8 lg:grid-cols-[280px_1fr] lg:items-start">
           <aside>
-            <SellerNavbar storeId={primaryStore.id} storeSlug={primaryStore.slug} />
+            <SellerNavbar storeId={primaryStore.id} storeSlug={primaryStore.slug} stores={stores} />
           </aside>
 
           <SellerProductsClient

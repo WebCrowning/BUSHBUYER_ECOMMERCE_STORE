@@ -11,6 +11,7 @@ export async function POST(req: Request) {
     const signatureHeader =
       req.headers.get("x-fapshi-signature") ||
       req.headers.get("fapshi-signature") ||
+      req.headers.get("x-wh-secret") ||
       "";
 
     if (!FapshiProvider.verifyWebhookSignature(rawBody, signatureHeader)) {

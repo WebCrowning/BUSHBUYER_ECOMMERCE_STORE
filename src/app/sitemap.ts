@@ -3,7 +3,7 @@ import { query } from "@/lib/db";
 
 interface Product {
   id: number;
-  updated_at?: string;
+  created_at?: string;
   featured: boolean;
 }
 
@@ -59,12 +59,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   try {
     // Get all products for dynamic URLs - split into pages of 40,000 max
     const products = await query<Product[]>(
-      `SELECT id, updated_at, featured FROM products WHERE store_id = 0 ORDER BY featured DESC, updated_at DESC LIMIT 10000`,
+      `SELECT id, created_at, featured FROM products ORDER BY featured DESC, created_at DESC LIMIT 10000`,
     );
 
     const productPages: MetadataRoute.Sitemap = products.map((product) => ({
       url: `${baseUrl}/products/${product.id}`,
-      lastModified: product.updated_at ? new Date(product.updated_at) : new Date(),
+      lastModified: product.created_at ? new Date(product.created_at) : new Date(),
       changeFrequency: product.featured ? ("weekly" as const) : ("monthly" as const),
       priority: product.featured ? 0.9 : 0.8,
     }));

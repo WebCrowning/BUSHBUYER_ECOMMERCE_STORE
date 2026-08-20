@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { SessionProvider, signIn, signOut, useSession } from "next-auth/react";
 import { useCart } from "@/context/cart-context";
+import { useTranslation } from "@/hooks/use-translation";
 import { Bell, ShoppingCart } from "lucide-react";
 
 export function HeaderActions() {
@@ -17,6 +18,7 @@ export function HeaderActions() {
 function HeaderActionsInner() {
   const { data: session, status } = useSession();
   const { totalItems } = useCart();
+  const { t } = useTranslation();
   const [unreadCount, setUnreadCount] = useState(0);
   const role = (session?.user as { role?: string } | undefined)?.role;
   const isAdmin = role === "admin" || role === "sub_admin";
@@ -72,7 +74,7 @@ function HeaderActionsInner() {
 
       {status === "loading" ? (
         <span className="rounded-full border border-white/30 px-4 py-2 text-sm font-semibold text-white">
-          Loading...
+          {t("header_loading")}
         </span>
       ) : session?.user ? (
         <>
@@ -82,7 +84,7 @@ function HeaderActionsInner() {
             aria-label="Notifications"
           >
             <Bell size={16} />
-            <span className="hidden sm:inline">Alerts</span>
+            <span className="hidden sm:inline">{t("header_alerts")}</span>
             {unreadCount > 0 ? (
               <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-red-600 px-1 text-center text-[10px] font-bold text-white">
                 {unreadCount > 99 ? "99+" : unreadCount}
@@ -94,28 +96,28 @@ function HeaderActionsInner() {
               href="/admin"
               className="hidden rounded-full border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-slate-700 md:inline-flex"
             >
-              Admin Portal
+              {t("header_admin_portal")}
             </Link>
           ) : (session?.user as { storeIds?: number[] })?.storeIds?.length ? (
             <Link
               href="/seller/dashboard"
               className="hidden rounded-full border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-sm font-bold text-emerald-400 transition-colors hover:bg-emerald-500/20 md:inline-flex"
             >
-              Store Portal
+              {t("header_store_portal")}
             </Link>
           ) : (session?.user as { referredStoreSlug?: string })?.referredStoreSlug ? (
             <Link
               href={`/store/${(session.user as { referredStoreSlug?: string }).referredStoreSlug}`}
               className="hidden rounded-full border border-sky-500/40 bg-sky-500/10 px-4 py-2 text-sm font-bold text-sky-300 transition-colors hover:bg-sky-500/20 md:inline-flex"
             >
-              My Preferred Store
+              {t("header_my_preferred_store")}
             </Link>
           ) : (
             <Link
               href="/dashboard"
               className="hidden rounded-full border border-white/30 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/10 md:inline-flex"
             >
-              Dashboard
+              {t("header_dashboard")}
             </Link>
           )}
           <button
@@ -123,7 +125,7 @@ function HeaderActionsInner() {
             onClick={() => signOut({ callbackUrl: "/" })}
             className="rounded-full bg-brand px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-deep"
           >
-            Sign Out
+            {t("header_sign_out")}
           </button>
         </>
       ) : (
@@ -132,7 +134,7 @@ function HeaderActionsInner() {
           onClick={() => signIn(undefined, { callbackUrl: "/signin" })}
           className="rounded-full bg-brand px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-deep"
         >
-          Sign In
+          {t("header_sign_in")}
         </button>
       )}
     </div>

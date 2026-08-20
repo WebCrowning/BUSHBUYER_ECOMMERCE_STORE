@@ -40,7 +40,12 @@ export async function PATCH(request: Request, { params }: Params) {
     return NextResponse.json({ error: "Image or image zoom is required" }, { status: 400 });
   }
 
-  if (image && !image.startsWith("/uploads/")) {
+  // Accept admin (/uploads/products/), seller (/uploads/seller/), and legacy (/uploads/) paths
+  const validPrefix =
+    image.startsWith("/uploads/products/") ||
+    image.startsWith("/uploads/seller/") ||
+    image.startsWith("/uploads/");
+  if (image && !validPrefix) {
     return NextResponse.json({ error: "Invalid image path" }, { status: 400 });
   }
 

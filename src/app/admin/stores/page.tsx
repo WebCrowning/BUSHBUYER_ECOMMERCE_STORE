@@ -416,12 +416,20 @@ export default function AdminStoresPage() {
             Create, monitor, and manage seller stores on Bushbuyer.
           </p>
         </div>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-emerald-700 transition-colors"
-        >
-          <Plus size={15} /> New Store
-        </button>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/admin/store-applications"
+            className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2 text-xs font-bold text-gray-700 shadow-sm hover:bg-gray-50 transition-colors"
+          >
+            <Store size={15} /> Applications
+          </Link>
+          <button
+            onClick={() => setShowCreate(true)}
+            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-emerald-700 transition-colors"
+          >
+            <Plus size={15} /> New Store
+          </button>
+        </div>
       </div>
 
       {/* Stats */}

@@ -11,7 +11,14 @@ export const metadata = {
   title: "Staff & Users | Seller Portal",
 };
 
-export default async function SellerStaffPage() {
+export default async function SellerStaffPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ storeId?: string }>;
+}) {
+  const { storeId: rawStoreId } = await searchParams;
+  const reqStoreId = rawStoreId ? parseInt(rawStoreId, 10) : NaN;
+
   const session = await auth();
   if (!session?.user?.id) {
     redirect("/signin");
@@ -19,7 +26,10 @@ export default async function SellerStaffPage() {
 
   const userId = Number(session.user.id);
   const stores = await StoreRepository.getUserStores(userId);
-  const primaryStore = stores[0] || null;
+  const primaryStore =
+    (!isNaN(reqStoreId) && stores.find((s) => s.id === reqStoreId)) ||
+    stores[0] ||
+    null;
 
   if (!primaryStore) {
     return (
@@ -46,7 +56,7 @@ export default async function SellerStaffPage() {
       <main className="container-shell py-8 flex-1">
         <div className="grid gap-8 lg:grid-cols-[280px_1fr] lg:items-start">
           <aside>
-            <SellerNavbar storeId={primaryStore.id} storeSlug={primaryStore.slug} />
+            <SellerNavbar storeId={primaryStore.id} storeSlug={primaryStore.slug} stores={stores} />
           </aside>
 
           <SellerStaffClient

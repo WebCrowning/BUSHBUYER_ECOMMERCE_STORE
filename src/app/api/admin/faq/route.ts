@@ -6,6 +6,8 @@ import { z } from "zod";
 const faqSchema = z.object({
   question: z.string().min(5).max(500),
   answer: z.string().min(10).max(5000),
+  question_fr: z.string().max(500).optional().nullable().transform((v) => (v && v.trim().length > 0 ? v.trim() : null)),
+  answer_fr: z.string().max(5000).optional().nullable().transform((v) => (v && v.trim().length > 0 ? v.trim() : null)),
   category: z
     .string()
     .trim()
@@ -18,6 +20,8 @@ type FAQ = {
   id: number;
   question: string;
   answer: string;
+  question_fr?: string | null;
+  answer_fr?: string | null;
   category: string;
   created_by: number | null;
   created_at: string;
@@ -32,7 +36,7 @@ export async function GET() {
 
   try {
     const faqs = await query<FAQ[]>(
-      "SELECT id, question, answer, category, created_by, created_at, updated_at FROM faq ORDER BY created_at DESC",
+      "SELECT id, question, answer, question_fr, answer_fr, category, created_by, created_at, updated_at FROM faq ORDER BY created_at DESC",
     );
     return NextResponse.json({ faqs });
   } catch {
@@ -62,10 +66,12 @@ export async function POST(request: Request) {
     const createdBy = Number.isInteger(rawUserId) && rawUserId > 0 ? rawUserId : null;
 
     await query(
-      "INSERT INTO faq (question, answer, category, created_by) VALUES (?, ?, ?, ?)",
+      "INSERT INTO faq (question, answer, question_fr, answer_fr, category, created_by) VALUES (?, ?, ?, ?, ?, ?)",
       [
         parsed.data.question,
         parsed.data.answer,
+        parsed.data.question_fr ?? null,
+        parsed.data.answer_fr ?? null,
         parsed.data.category,
         createdBy,
       ],

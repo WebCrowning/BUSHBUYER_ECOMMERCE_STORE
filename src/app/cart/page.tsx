@@ -8,6 +8,7 @@ import { CurrencyToggle } from "@/components/currency-toggle";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { useCart } from "@/context/cart-context";
+import { useTranslation } from "@/hooks/use-translation";
 import { formatCurrency } from "@/lib/utils";
 
 const USD_TO_XAF = 600;
@@ -23,6 +24,7 @@ type InventoryRow = {
 export default function CartPage() {
   const router = useRouter();
   const { items, currency, subtotal, updateQuantity, removeItem, whatsappText } = useCart();
+  const { t } = useTranslation();
   const [inventoryByProduct, setInventoryByProduct] = useState<Record<number, InventoryRow>>({});
   const [inventoryChecked, setInventoryChecked] = useState(false);
   const [stockPopupOpen, setStockPopupOpen] = useState(false);
@@ -132,17 +134,17 @@ export default function CartPage() {
       <main className="container-shell py-10">
         <div className="mb-7 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="section-kicker">Cart</p>
-            <h1 className="section-title mt-2 text-brand-deep">Your Selected Items</h1>
+            <p className="section-kicker">{t("cart_kicker")}</p>
+            <h1 className="section-title mt-2 text-brand-deep">{t("cart_title")}</h1>
           </div>
           <CurrencyToggle />
         </div>
 
         {items.length === 0 ? (
           <div className="glass-card rounded-2xl p-8 text-center">
-            <p className="text-lg font-semibold">Your cart is empty.</p>
+            <p className="text-lg font-semibold">{t("cart_empty")}</p>
             <Link href="/products" className="mt-4 inline-block rounded-full bg-brand px-5 py-2 text-sm font-semibold text-white">
-              Browse products
+              {t("cart_browse")}
             </Link>
           </div>
         ) : (
@@ -160,10 +162,10 @@ export default function CartPage() {
                   <div className="min-w-44 flex-1">
                     <h2 className="text-base font-bold">{item.name}</h2>
                     <p className="text-sm text-foreground/70">{formatCurrency(item.price, "USD")}</p>
-                    <p className="text-xs text-foreground/60">Transport: {formatCurrency(item.transportFee, "USD")} / {item.packageName}</p>
-                    <p className="text-xs text-foreground/60">Package: {item.packageName} ({Number(item.unitValue)} {item.unitType})</p>
+                    <p className="text-xs text-foreground/60">{t("cart_transport")} {formatCurrency(item.transportFee, "USD")} / {item.packageName}</p>
+                    <p className="text-xs text-foreground/60">{t("cart_package")} {item.packageName} ({Number(item.unitValue)} {item.unitType})</p>
                     <p className="text-xs text-foreground/60">
-                      Available: {Number(inventoryByProduct[item.productId]?.stockPackages ?? 0)} packages
+                      {t("cart_available")} {Number(inventoryByProduct[item.productId]?.stockPackages ?? 0)} {t("cart_packages")}
                     </p>
                   </div>
 
@@ -190,28 +192,28 @@ export default function CartPage() {
                     onClick={() => removeItem(item.productId)}
                     className="rounded-full border border-red-200 px-3 py-1 text-xs font-semibold text-red-600"
                   >
-                    Remove
+                    {t("cart_remove")}
                   </button>
                 </article>
               ))}
             </div>
 
             <aside className="glass-card h-fit rounded-2xl p-5">
-              <h3 className="text-lg font-bold text-brand-deep">Order Summary</h3>
+              <h3 className="text-lg font-bold text-brand-deep">{t("cart_order_summary")}</h3>
               <div className="mt-4 flex items-center justify-between text-sm">
-                <span>Total items</span>
+                <span>{t("cart_total_items")}</span>
                 <span className="font-semibold">{items.reduce((sum, i) => sum + i.quantityPackages, 0)}</span>
               </div>
               <div className="mt-3 flex items-center justify-between text-sm">
-                <span>Products subtotal</span>
+                <span>{t("cart_subtotal")}</span>
                 <span className="font-semibold">{formatCurrency(convertedSubtotal, currency)}</span>
               </div>
               <div className="mt-3 flex items-center justify-between text-sm">
-                <span>Transport fees</span>
+                <span>{t("cart_transport_fees")}</span>
                 <span className="font-semibold">{formatCurrency(convertedTransport, currency)}</span>
               </div>
               <div className="mt-3 flex items-center justify-between text-sm font-bold">
-                <span>Grand total</span>
+                <span>{t("cart_grand_total")}</span>
                 <span>{formatCurrency(convertedTotal, currency)}</span>
               </div>
 
@@ -220,7 +222,7 @@ export default function CartPage() {
                 onClick={handleProceedToCheckout}
                 className="mt-6 block w-full rounded-full bg-brand px-4 py-2 text-center text-sm font-semibold text-white"
               >
-                Proceed to Checkout
+                {t("cart_checkout")}
               </button>
 
               <a
@@ -229,7 +231,7 @@ export default function CartPage() {
                 rel="noreferrer"
                 className="mt-3 block rounded-full border border-border px-4 py-2 text-center text-sm font-semibold"
               >
-                Send Cart on WhatsApp
+                {t("cart_whatsapp")}
               </a>
             </aside>
           </div>
@@ -247,14 +249,14 @@ export default function CartPage() {
                 href="/chat"
                 className="rounded-full border border-brand px-4 py-1.5 text-sm font-semibold text-brand hover:bg-brand/5"
               >
-                Contact Admin
+                {t("cart_stock_contact")}
               </Link>
               <button
                 type="button"
                 className="rounded-full bg-red-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-red-700"
                 onClick={() => setStockPopupOpen(false)}
               >
-                OK
+                {t("cart_stock_ok")}
               </button>
             </div>
           </div>

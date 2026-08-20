@@ -7,6 +7,8 @@ interface FAQ {
   id: number;
   question: string;
   answer: string;
+  question_fr?: string | null;
+  answer_fr?: string | null;
   category?: string;
   created_at: string;
   updated_at: string;
@@ -17,6 +19,8 @@ export default function FAQManagementPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
+  const [questionFr, setQuestionFr] = useState("");
+  const [answerFr, setAnswerFr] = useState("");
   const [category, setCategory] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingFaqs, setLoadingFaqs] = useState(true);
@@ -48,7 +52,7 @@ export default function FAQManagementPage() {
   const handleAddFAQ = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!question.trim() || !answer.trim()) {
-      setError("Question and answer are required");
+      setError("English question and answer are required");
       return;
     }
 
@@ -64,23 +68,31 @@ export default function FAQManagementPage() {
       const res = await fetch(endpoint, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question, answer, category }),
+        body: JSON.stringify({
+          question,
+          answer,
+          question_fr: questionFr,
+          answer_fr: answerFr,
+          category,
+        }),
       });
 
       if (!res.ok) {
         const data = (await res.json()) as { error?: string };
-        throw new Error(data.error || "Failed to add FAQ");
+        throw new Error(data.error || "Failed to save FAQ");
       }
 
       setSuccess(isEditing ? "FAQ updated successfully!" : "FAQ added successfully!");
       setEditingId(null);
       setQuestion("");
       setAnswer("");
+      setQuestionFr("");
+      setAnswerFr("");
       setCategory("");
       setSuggestions([]);
       await fetchFaqs();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to add FAQ");
+      setError(err instanceof Error ? err.message : "Failed to save FAQ");
     } finally {
       setLoading(false);
     }
@@ -103,6 +115,8 @@ export default function FAQManagementPage() {
     setEditingId(faq.id);
     setQuestion(faq.question);
     setAnswer(faq.answer);
+    setQuestionFr(faq.question_fr ?? "");
+    setAnswerFr(faq.answer_fr ?? "");
     setCategory(faq.category ?? "");
     setSuccess("");
     setError("");
@@ -112,6 +126,8 @@ export default function FAQManagementPage() {
     setEditingId(null);
     setQuestion("");
     setAnswer("");
+    setQuestionFr("");
+    setAnswerFr("");
     setCategory("");
     setSuggestions([]);
     setError("");
@@ -257,7 +273,7 @@ export default function FAQManagementPage() {
               <form onSubmit={handleAddFAQ} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Question
+                    Question (English) *
                   </label>
                   <input
                     type="text"
@@ -274,19 +290,55 @@ export default function FAQManagementPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Answer
+                    Answer (English) *
                   </label>
                   <textarea
                     value={answer}
                     onChange={(e) => setAnswer(e.target.value)}
                     placeholder="Detailed answer..."
-                    rows={6}
+                    rows={4}
                     className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-950 resize-none"
                     disabled={loading}
                   />
                   <p className="text-xs text-gray-500 mt-1">
                     {answer.length}/5000 characters
                   </p>
+                </div>
+
+                <div className="border-t border-gray-200 pt-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-blue-700 bg-blue-50 px-2 py-0.5 rounded">
+                      French Version (Français)
+                    </span>
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Question (French / Français)
+                    </label>
+                    <input
+                      type="text"
+                      value={questionFr}
+                      onChange={(e) => setQuestionFr(e.target.value)}
+                      placeholder="e.g. Qu'est-ce que...?"
+                      className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-950"
+                      disabled={loading}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Answer (French / Français)
+                    </label>
+                    <textarea
+                      value={answerFr}
+                      onChange={(e) => setAnswerFr(e.target.value)}
+                      placeholder="Detailed answer in French..."
+                      rows={4}
+                      className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-950 resize-none"
+                      disabled={loading}
+                    />
+                  </div>
                 </div>
 
                 <div>
@@ -446,10 +498,28 @@ export default function FAQManagementPage() {
                           <p className="text-gray-600 text-sm mb-2 line-clamp-2">
                             {faq.answer}
                           </p>
+                          {faq.question_fr && (
+                            <div className="mb-2 p-2 bg-blue-50/60 rounded border border-blue-100 text-xs">
+                              <span className="font-semibold text-blue-800">FR: </span>
+                              <span className="text-blue-950 font-medium">{faq.question_fr}</span>
+                              {faq.answer_fr && (
+                                <p className="text-blue-900/80 mt-0.5 line-clamp-1">{faq.answer_fr}</p>
+                              )}
+                            </div>
+                          )}
                           <div className="flex items-center gap-3 text-xs text-gray-500">
                             {faq.category && (
                               <span className="bg-gray-100 px-2 py-1 rounded">
                                 {faq.category}
+                              </span>
+                            )}
+                            {faq.question_fr ? (
+                              <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded text-[11px] font-semibold">
+                                FR Translated
+                              </span>
+                            ) : (
+                              <span className="bg-gray-100 text-gray-500 px-2 py-0.5 rounded text-[11px]">
+                                No FR translation
                               </span>
                             )}
                             <span>

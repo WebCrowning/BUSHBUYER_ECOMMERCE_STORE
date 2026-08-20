@@ -21,8 +21,11 @@ import {
   Shield,
   Bell,
   ExternalLink,
+  ShoppingBag,
   type LucideIcon,
 } from "lucide-react";
+import { StoreSwitcher } from "@/components/store-switcher";
+import { Store as StoreType } from "@/types/marketplace";
 
 type SellerNavItem = {
   href: string;
@@ -30,13 +33,29 @@ type SellerNavItem = {
   icon: LucideIcon;
 };
 
-export default function SellerNavbar({ storeId, storeSlug }: { storeId?: number; storeSlug?: string }) {
+export default function SellerNavbar({
+  storeId,
+  storeSlug,
+  stores,
+}: {
+  storeId?: number;
+  storeSlug?: string;
+  stores?: StoreType[];
+}) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const [unreadCount, setUnreadCount] = useState(0);
 
   const userStoreIds = (session?.user as { storeIds?: number[] })?.storeIds || [];
   const activeStoreId = storeId || userStoreIds[0] || 1;
+  const userStores = stores || [];
+
+  const getLinkHref = (baseHref: string) => {
+    if (userStores.length > 1 && activeStoreId) {
+      return `${baseHref}?storeId=${activeStoreId}`;
+    }
+    return baseHref;
+  };
 
   const sellerNavItems: SellerNavItem[] = [
     { href: "/seller/dashboard", label: "Store Overview", icon: LayoutDashboard },
@@ -85,8 +104,8 @@ export default function SellerNavbar({ storeId, storeSlug }: { storeId?: number;
     };
   }, []);
 
-  const linkClass = (href: string) => {
-    const isActive = pathname === href;
+  const linkClass = (baseHref: string) => {
+    const isActive = pathname === baseHref;
 
     return `block rounded-xl border px-3 py-2 text-sm font-semibold transition-all ${
       isActive
@@ -99,6 +118,12 @@ export default function SellerNavbar({ storeId, storeSlug }: { storeId?: number;
     <>
       {/* Mobile Drawer */}
       <div className="mb-4 rounded-2xl border border-slate-700 bg-slate-900 p-3 text-white shadow-sm lg:hidden">
+        {userStores.length > 0 && (
+          <div className="mb-3">
+            <StoreSwitcher stores={userStores} activeStoreId={activeStoreId} />
+          </div>
+        )}
+
         <details className="group">
           <summary className="flex cursor-pointer list-none items-center justify-between rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm font-bold text-white">
             <div>
@@ -110,6 +135,18 @@ export default function SellerNavbar({ storeId, storeSlug }: { storeId?: number;
 
           <div className="mt-3 space-y-2">
             <nav className="grid gap-1">
+              {/* ── Shop as Buyer ── */}
+              <Link
+                href="/products"
+                className="flex items-center gap-2 rounded-xl border border-violet-500/40 bg-violet-900/30 px-3 py-2 text-sm font-bold text-violet-300 transition-all hover:bg-violet-900/60"
+              >
+                <ShoppingBag size={14} className="text-violet-400" />
+                <span className="flex-1">Shop &amp; Buy Products</span>
+                <span className="rounded-md bg-violet-500/20 px-1.5 py-0.5 text-[10px] font-bold text-violet-400">
+                  Buyer Mode
+                </span>
+              </Link>
+
               {viewStoreHref && (
                 <Link
                   href={viewStoreHref}
@@ -126,8 +163,9 @@ export default function SellerNavbar({ storeId, storeSlug }: { storeId?: number;
               )}
               {sellerNavItems.map((item) => {
                 const ItemIcon = item.icon;
+                const targetHref = getLinkHref(item.href);
                 return (
-                  <Link key={item.href} href={item.href} className={linkClass(item.href)}>
+                  <Link key={item.href} href={targetHref} className={linkClass(item.href)}>
                     <span className="flex items-center justify-between gap-2">
                       <span className="inline-flex items-center gap-2">
                         <ItemIcon size={14} />
@@ -160,19 +198,37 @@ export default function SellerNavbar({ storeId, storeSlug }: { storeId?: number;
 
       {/* Desktop Sidebar */}
       <aside className="hidden h-fit rounded-2xl border border-slate-700 bg-slate-900 p-4 text-white shadow-sm lg:sticky lg:top-6 lg:block">
-        <div className="mb-4 rounded-xl border border-slate-700 bg-gradient-to-br from-slate-800 via-slate-900 to-slate-900 px-3 py-3">
-          <p className="text-[0.65rem] font-bold uppercase tracking-[0.18em] text-slate-400">Store Portal</p>
-          <p className="mt-1 inline-flex items-center gap-2 text-sm font-extrabold text-white">
-            <Store size={14} className="text-emerald-400" />
-            Store Management
-          </p>
-          <p className="inline-flex items-center gap-1.5 text-xs text-slate-400">
-            <Sparkles size={12} className="text-slate-500" />
-            Store Owner Control Center
-          </p>
-        </div>
+        {userStores.length > 0 ? (
+          <div className="mb-4">
+            <StoreSwitcher stores={userStores} activeStoreId={activeStoreId} />
+          </div>
+        ) : (
+          <div className="mb-4 rounded-xl border border-slate-700 bg-gradient-to-br from-slate-800 via-slate-900 to-slate-900 px-3 py-3">
+            <p className="text-[0.65rem] font-bold uppercase tracking-[0.18em] text-slate-400">Store Portal</p>
+            <p className="mt-1 inline-flex items-center gap-2 text-sm font-extrabold text-white">
+              <Store size={14} className="text-emerald-400" />
+              Store Management
+            </p>
+            <p className="inline-flex items-center gap-1.5 text-xs text-slate-400">
+              <Sparkles size={12} className="text-slate-500" />
+              Store Owner Control Center
+            </p>
+          </div>
+        )}
 
         <nav className="space-y-1.5">
+          {/* ── Shop as Buyer ── */}
+          <Link
+            href="/products"
+            className="flex items-center gap-2 rounded-xl border border-violet-500/40 bg-violet-900/30 px-3 py-2.5 text-sm font-bold text-violet-300 transition-all hover:bg-violet-900/60"
+          >
+            <ShoppingBag size={14} className="text-violet-400" />
+            <span className="flex-1">Shop &amp; Buy Products</span>
+            <span className="rounded-md bg-violet-500/20 px-1.5 py-0.5 text-[10px] font-bold text-violet-400">
+              Buyer Mode
+            </span>
+          </Link>
+
           {viewStoreHref && (
             <Link
               href={viewStoreHref}
@@ -189,8 +245,9 @@ export default function SellerNavbar({ storeId, storeSlug }: { storeId?: number;
           )}
           {sellerNavItems.map((item) => {
             const ItemIcon = item.icon;
+            const targetHref = getLinkHref(item.href);
             return (
-              <Link key={item.href} href={item.href} className={linkClass(item.href)}>
+              <Link key={item.href} href={targetHref} className={linkClass(item.href)}>
                 <span className="flex items-center justify-between gap-2">
                   <span className="inline-flex items-center gap-2">
                     <ItemIcon size={14} />

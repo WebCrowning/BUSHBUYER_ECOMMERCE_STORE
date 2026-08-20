@@ -26,6 +26,7 @@ import {
   UserPlus,
   CreditCard,
   Tag,
+  ClipboardList,
   type LucideIcon,
 } from "lucide-react";
 
@@ -33,6 +34,7 @@ const allAdminNavItems = [
   { href: "/admin/notifications", label: "Notifications", icon: Bell, superOnly: false },
   { href: "/admin", label: "Overview", icon: LayoutDashboard, superOnly: false },
   { href: "/admin/stores", label: "Stores", icon: Store, superOnly: true },
+  { href: "/admin/store-applications", label: "Store Applications", icon: ClipboardList, superOnly: true },
   { href: "/admin/products", label: "Products", icon: Package, superOnly: false },
   { href: "/admin/categories", label: "Categories", icon: Tag, superOnly: true },
   { href: "/admin/inventory", label: "Inventory", icon: Boxes, superOnly: false },
@@ -66,6 +68,7 @@ export function AdminNavbar({ renderMobile = true, renderDesktop = true }: Admin
   const pathname = usePathname();
   const { data: session } = useSession();
   const [unreadCount, setUnreadCount] = useState(0);
+  const [pendingStoreAppsCount, setPendingStoreAppsCount] = useState(0);
 
   const userRole = (session?.user as { role?: string })?.role || "user";
   const userStoreIds = (session?.user as { storeIds?: number[] })?.storeIds || [];
@@ -121,6 +124,35 @@ export function AdminNavbar({ renderMobile = true, renderDesktop = true }: Admin
     };
   }, []);
 
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    let active = true;
+
+    async function loadPendingStoreApps() {
+      try {
+        const response = await fetch("/api/admin/store-applications/pending-count", { cache: "no-store" });
+        const payload = (await response.json().catch(() => null)) as { count?: number } | null;
+        if (active && response.ok) {
+          setPendingStoreAppsCount(Number(payload?.count ?? 0));
+        }
+      } catch {
+        if (active) {
+          setPendingStoreAppsCount(0);
+        }
+      }
+    }
+
+    void loadPendingStoreApps();
+    const timer = setInterval(() => {
+      void loadPendingStoreApps();
+    }, 30000);
+
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, [isSuperAdmin]);
+
   const linkClass = (href: string) => {
     const isActive = pathname === href;
 
@@ -158,6 +190,11 @@ export function AdminNavbar({ renderMobile = true, renderDesktop = true }: Admin
                     {item.href === "/admin/notifications" && unreadCount > 0 ? (
                       <span className="rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-bold text-white">
                         {unreadCount > 99 ? "99+" : unreadCount}
+                      </span>
+                    ) : null}
+                    {item.href === "/admin/store-applications" && pendingStoreAppsCount > 0 ? (
+                      <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                        {pendingStoreAppsCount > 99 ? "99+" : pendingStoreAppsCount}
                       </span>
                     ) : null}
                   </span>
@@ -213,6 +250,11 @@ export function AdminNavbar({ renderMobile = true, renderDesktop = true }: Admin
                 {item.href === "/admin/notifications" && unreadCount > 0 ? (
                   <span className="rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-bold text-white">
                     {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
+                ) : null}
+                {item.href === "/admin/store-applications" && pendingStoreAppsCount > 0 ? (
+                  <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                    {pendingStoreAppsCount > 99 ? "99+" : pendingStoreAppsCount}
                   </span>
                 ) : null}
               </span>

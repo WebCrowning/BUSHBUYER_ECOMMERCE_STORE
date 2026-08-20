@@ -95,7 +95,7 @@ export default function SellerProductsClient({
 
   async function loadUploadedImages() {
     try {
-      const response = await fetch("/api/admin/upload");
+      const response = await fetch("/api/admin/upload?type=seller");
       if (response.ok) {
         const payload = await response.json();
         setUploadedImages(payload?.images ?? []);
@@ -123,18 +123,33 @@ export default function SellerProductsClient({
     const fd = new FormData();
     fd.append("file", file);
     try {
-      const response = await fetch("/api/admin/upload", { method: "POST", body: fd });
-      const payload = await response.json();
+      const response = await fetch("/api/admin/upload?type=seller", { method: "POST", body: fd });
 
-      if (!response.ok || !payload.imageUrl) {
-        throw new Error(payload.error ?? "Upload failed");
+      // Safely parse JSON — catch HTML error pages from middleware
+      let payload: Record<string, unknown> | null = null;
+      try {
+        payload = await response.json();
+      } catch {
+        throw new Error(`Upload failed (HTTP ${response.status})`);
       }
 
-      setForm((prev) => ({ ...prev, image: payload.imageUrl }));
+      if (!response.ok || !payload?.imageUrl) {
+        // Extract a safe string from whatever the server returned
+        const raw = payload?.error;
+        const msg =
+          typeof raw === "string"
+            ? raw
+            : raw && typeof (raw as Record<string, unknown>).message === "string"
+              ? String((raw as Record<string, unknown>).message)
+              : `Upload failed (HTTP ${response.status})`;
+        throw new Error(msg);
+      }
+
+      setForm((prev) => ({ ...prev, image: String(payload!.imageUrl) }));
       setStatus("Image uploaded successfully.");
       await loadUploadedImages();
     } catch (err) {
-      setStatus(err instanceof Error ? err.message : "Image upload failed.");
+      setStatus(err instanceof Error ? err.message : "Image upload failed. Please try again.");
     } finally {
       setUploadingImage(false);
     }

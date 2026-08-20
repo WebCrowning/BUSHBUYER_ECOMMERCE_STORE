@@ -26,11 +26,21 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json().catch(() => null);
-    const storeId = typeof body?.storeId === "number" ? body.storeId : parseInt(body?.storeId, 10);
+    let storeId = typeof body?.storeId === "number" ? body.storeId : parseInt(body?.storeId, 10);
+    const storeSlug = typeof body?.storeSlug === "string" ? body.storeSlug : typeof body?.slug === "string" ? body.slug : null;
 
-    if (!storeId || isNaN(storeId) || storeId <= 0) {
-      return NextResponse.json({ error: "Invalid storeId" }, { status: 400 });
+    let store = null;
+    if (storeId && !isNaN(storeId) && storeId > 0) {
+      store = await StoreRepository.findById(storeId);
+    } else if (storeSlug) {
+      store = await StoreRepository.findBySlug(storeSlug);
     }
+
+    if (!store || store.store_status !== "active") {
+      return NextResponse.json({ ok: false, reason: "store_not_found" }, { status: 404 });
+    }
+
+    storeId = store.id;
 
     const userId = Number(session.user.id);
 
@@ -38,12 +48,6 @@ export async function POST(request: Request) {
     const user = await UserRepository.findById(userId);
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
-    // Verify the store exists and is active
-    const store = await StoreRepository.findById(storeId);
-    if (!store || store.store_status !== "active") {
-      return NextResponse.json({ ok: false, reason: "store_not_found" });
     }
 
     // Only update if not already attributed (first-attribution-wins)

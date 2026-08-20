@@ -7,6 +7,7 @@ import { query } from "@/lib/db";
 import { formatCurrency } from "@/lib/utils";
 import type { Product } from "@/types";
 import { Store, Search, SlidersHorizontal, ArrowUpDown, ExternalLink } from "lucide-react";
+import { ProductPriceDisplay } from "@/components/product-price-display";
 
 export const metadata: Metadata = {
   title: "Marketplace | Bushbuyer — Shop Everything",
@@ -402,11 +403,11 @@ export default async function ProductsPage({ searchParams }: PageProps) {
                     <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/50">
                       <div>
                         <span className="text-base font-extrabold text-brand-deep">
-                          {formatCurrency(displayPrice, "USD")}
+                          <ProductPriceDisplay price={displayPrice} />
                         </span>
                         {hasDiscount && (
                           <span className="ml-1.5 text-xs text-foreground/40 line-through">
-                            {formatCurrency(product.price, "USD")}
+                            <ProductPriceDisplay price={product.price} />
                           </span>
                         )}
                       </div>

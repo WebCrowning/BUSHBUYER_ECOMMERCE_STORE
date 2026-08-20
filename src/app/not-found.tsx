@@ -1,9 +1,14 @@
+"use client";
+
 import Link from "next/link";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
-import { PackageSearch, ArrowLeft, Home, ShoppingBag } from "lucide-react";
+import { useTranslation } from "@/hooks/use-translation";
+import { PackageSearch, Home, ShoppingBag } from "lucide-react";
 
 export default function NotFound() {
+  const { t } = useTranslation();
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-brand/5 via-white to-white flex flex-col">
       <SiteHeader />
@@ -23,11 +28,10 @@ export default function NotFound() {
           </div>
 
           <h1 className="text-2xl font-extrabold text-brand-deep mb-3">
-            Page Not Found
+            {t("notfound_title")}
           </h1>
           <p className="text-foreground/60 text-sm leading-relaxed mb-8 max-w-sm mx-auto">
-            The page you&apos;re looking for doesn&apos;t exist or may have been moved.
-            Let&apos;s get you back on track.
+            {t("notfound_desc")}
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
@@ -36,25 +40,25 @@ export default function NotFound() {
               className="inline-flex items-center gap-2 rounded-xl bg-brand px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-brand-deep shadow-sm"
             >
               <Home size={15} />
-              Go Home
+              {t("notfound_go_home")}
             </Link>
             <Link
               href="/products"
               className="inline-flex items-center gap-2 rounded-xl border border-border bg-white px-6 py-3 text-sm font-bold text-foreground/70 transition-colors hover:bg-surface-soft"
             >
               <ShoppingBag size={15} />
-              Browse Products
+              {t("notfound_browse")}
             </Link>
           </div>
 
           <div className="mt-8 text-xs text-foreground/40">
-            Lost? Try the{" "}
+            {t("notfound_lost")}{" "}
             <Link href="/faq" className="underline hover:text-brand">
-              FAQ
+              {t("notfound_faq")}
             </Link>{" "}
-            or{" "}
+            {t("notfound_or")}{" "}
             <Link href="/contact" className="underline hover:text-brand">
-              contact support
+              {t("notfound_contact")}
             </Link>
             .
           </div>
@@ -65,3 +69,4 @@ export default function NotFound() {
     </div>
   );
 }
+

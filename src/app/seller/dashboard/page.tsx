@@ -11,7 +11,14 @@ import { SiteFooter } from "@/components/site-footer";
 import SellerNavbar from "@/components/seller-navbar";
 import { Store, DollarSign, Package, ShoppingBag, Users, ArrowUpRight, Truck, UserPlus, ShieldCheck } from "lucide-react";
 
-export default async function SellerDashboardPage() {
+export default async function SellerDashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ storeId?: string }>;
+}) {
+  const { storeId: rawStoreId } = await searchParams;
+  const reqStoreId = rawStoreId ? parseInt(rawStoreId, 10) : NaN;
+
   const session = await auth();
   if (!session?.user?.id) {
     redirect("/signin");
@@ -20,8 +27,12 @@ export default async function SellerDashboardPage() {
   const userId = Number(session.user.id);
   const stores = await StoreRepository.getUserStores(userId);
 
-  // Fallback to primary assigned store or default store
-  const primaryStore = stores[0] || (await StoreRepository.findById(1));
+  // Determine active store from storeId parameter or fallback to first store
+  const primaryStore =
+    (!isNaN(reqStoreId) && stores.find((s) => s.id === reqStoreId)) ||
+    stores[0] ||
+    (await StoreRepository.findById(1));
+
   if (!primaryStore) {
     return <div className="p-8 text-center text-foreground/70">No store found. Please contact Super Admin.</div>;
   }
@@ -38,7 +49,7 @@ export default async function SellerDashboardPage() {
       <main className="container-shell py-8 flex-1">
         <div className="grid gap-8 lg:grid-cols-[280px_1fr] lg:items-start">
           <aside>
-            <SellerNavbar storeId={primaryStore.id} storeSlug={primaryStore.slug} />
+            <SellerNavbar storeId={primaryStore.id} storeSlug={primaryStore.slug} stores={stores} />
           </aside>
 
           <div className="space-y-6">
@@ -62,6 +73,12 @@ export default async function SellerDashboardPage() {
               </div>
 
               <div className="flex items-center gap-3">
+                <Link
+                  href={`/store/${primaryStore.slug}`}
+                  className="px-4 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold rounded-xl flex items-center gap-2 border border-emerald-200 transition-all shadow-sm"
+                >
+                  <Store className="w-3.5 h-3.5 text-emerald-600" /> Upload Cover Photo
+                </Link>
                 <Link
                   href={`/store/${primaryStore.slug}`}
                   target="_blank"

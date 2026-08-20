@@ -168,6 +168,8 @@ async function ensurePackageSchema() {
           id INT AUTO_INCREMENT PRIMARY KEY,
           question VARCHAR(500) NOT NULL,
           answer TEXT NOT NULL,
+          question_fr VARCHAR(500) NULL DEFAULT NULL,
+          answer_fr TEXT NULL DEFAULT NULL,
           category VARCHAR(100) NOT NULL DEFAULT 'General',
           created_by INT NULL,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -188,6 +190,26 @@ async function ensurePackageSchema() {
           status ENUM('Open','Replied') DEFAULT 'Open',
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (user_id) REFERENCES users(id)
+        )`,
+      );
+
+      await pool.execute(
+        `CREATE TABLE IF NOT EXISTS store_applications (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          user_id INT NOT NULL,
+          store_name VARCHAR(190) NOT NULL,
+          business_category VARCHAR(100) NOT NULL DEFAULT 'General',
+          products_description TEXT NOT NULL,
+          phone VARCHAR(40) NULL,
+          email VARCHAR(190) NULL,
+          additional_notes TEXT NULL,
+          status ENUM('pending', 'approved', 'rejected') NOT NULL DEFAULT 'pending',
+          admin_notes TEXT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+          INDEX idx_store_app_user (user_id),
+          INDEX idx_store_app_status (status)
         )`,
       );
 
@@ -309,6 +331,16 @@ async function ensurePackageSchema() {
         await pool.execute(
           "ALTER TABLE users ADD COLUMN password_hash VARCHAR(255) NULL",
         );
+      }
+
+      const hasFaqQuestionFr = await hasColumn("faq", "question_fr");
+      if (!hasFaqQuestionFr) {
+        await pool.execute("ALTER TABLE faq ADD COLUMN question_fr VARCHAR(500) NULL DEFAULT NULL");
+      }
+
+      const hasFaqAnswerFr = await hasColumn("faq", "answer_fr");
+      if (!hasFaqAnswerFr) {
+        await pool.execute("ALTER TABLE faq ADD COLUMN answer_fr TEXT NULL DEFAULT NULL");
       }
 
       const hasReferredByStore = await hasColumn("users", "referred_by_store_id");

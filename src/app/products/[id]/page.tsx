@@ -5,11 +5,12 @@ import { AddToCartButton } from "@/components/add-to-cart-button";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { query } from "@/lib/db";
-import { formatCurrency, toId } from "@/lib/utils";
+import { toId } from "@/lib/utils";
 import type { Product } from "@/types";
 
 import { ShareModal } from "@/components/share-modal";
 import { StoreAttributor } from "@/components/store-attributor";
+import { ProductPriceDisplay } from "@/components/product-price-display";
 
 export const dynamic = "force-dynamic";
 
@@ -81,7 +82,7 @@ export default async function ProductDetailsPage({ params }: Props) {
 
             <div className="mt-6 flex items-center justify-between rounded-2xl border border-border bg-surface p-4">
               <span className="text-2xl font-bold text-brand-deep">
-                {formatCurrency(Number(product.price), "USD")}
+                <ProductPriceDisplay price={Number(product.price)} />
               </span>
               <span className="text-sm font-semibold text-foreground/70">
                 Available: {Number(product.stockPackages)} packages ({Number(product.unitValue) * Number(product.stockPackages)} {product.unitType})

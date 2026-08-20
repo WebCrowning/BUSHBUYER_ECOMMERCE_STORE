@@ -7,7 +7,14 @@ import { SiteFooter } from "@/components/site-footer";
 import SellerNavbar from "@/components/seller-navbar";
 import SellerInventoryClient from "./seller-inventory-client";
 
-export default async function SellerInventoryPage() {
+export default async function SellerInventoryPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ storeId?: string }>;
+}) {
+  const { storeId: rawStoreId } = await searchParams;
+  const reqStoreId = rawStoreId ? parseInt(rawStoreId, 10) : NaN;
+
   const session = await auth();
   if (!session?.user?.id) {
     redirect("/signin");
@@ -15,7 +22,10 @@ export default async function SellerInventoryPage() {
 
   const userId = Number(session.user.id);
   const stores = await StoreRepository.getUserStores(userId);
-  const primaryStore = stores[0] || (await StoreRepository.findById(1));
+  const primaryStore =
+    (!isNaN(reqStoreId) && stores.find((s) => s.id === reqStoreId)) ||
+    stores[0] ||
+    (await StoreRepository.findById(1));
 
   if (!primaryStore) {
     return <div className="p-8 text-center text-foreground/70">No store found. Please contact Super Admin.</div>;
@@ -31,7 +41,7 @@ export default async function SellerInventoryPage() {
       <main className="container-shell py-8 flex-1">
         <div className="grid gap-8 lg:grid-cols-[280px_1fr] lg:items-start">
           <aside>
-            <SellerNavbar storeId={primaryStore.id} storeSlug={primaryStore.slug} />
+            <SellerNavbar storeId={primaryStore.id} storeSlug={primaryStore.slug} stores={stores} />
           </aside>
 
           <SellerInventoryClient

@@ -7,6 +7,8 @@ import { toId } from "@/lib/utils";
 const faqSchema = z.object({
   question: z.string().min(5).max(500),
   answer: z.string().min(10).max(5000),
+  question_fr: z.string().max(500).optional().nullable().transform((v) => (v && v.trim().length > 0 ? v.trim() : null)),
+  answer_fr: z.string().max(5000).optional().nullable().transform((v) => (v && v.trim().length > 0 ? v.trim() : null)),
   category: z
     .string()
     .trim()
@@ -44,8 +46,15 @@ export async function PUT(request: Request, { params }: Params) {
 
   try {
     await query(
-      "UPDATE faq SET question = ?, answer = ?, category = ?, updated_at = NOW() WHERE id = ?",
-      [parsed.data.question, parsed.data.answer, parsed.data.category, faqId],
+      "UPDATE faq SET question = ?, answer = ?, question_fr = ?, answer_fr = ?, category = ?, updated_at = NOW() WHERE id = ?",
+      [
+        parsed.data.question,
+        parsed.data.answer,
+        parsed.data.question_fr ?? null,
+        parsed.data.answer_fr ?? null,
+        parsed.data.category,
+        faqId,
+      ],
     );
     return NextResponse.json({ ok: true });
   } catch {

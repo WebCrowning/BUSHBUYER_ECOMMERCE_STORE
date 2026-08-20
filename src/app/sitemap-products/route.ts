@@ -3,7 +3,7 @@ import { query } from "@/lib/db";
 
 interface Product {
   id: number;
-  updated_at?: string;
+  created_at?: string;
 }
 
 /**
@@ -19,7 +19,7 @@ export async function GET(request: Request): Promise<Response> {
   try {
     // Get products for this page
     const products = await query<Product[]>(
-      `SELECT id, updated_at FROM products WHERE store_id = 0 ORDER BY updated_at DESC LIMIT ? OFFSET ?`,
+      `SELECT id, created_at FROM products ORDER BY created_at DESC LIMIT ? OFFSET ?`,
       [pageSize, offset],
     );
 
@@ -38,7 +38,7 @@ ${products
     (product) => `
   <url>
     <loc>${baseUrl}/products/${product.id}</loc>
-    <lastmod>${product.updated_at ? new Date(product.updated_at).toISOString() : new Date().toISOString()}</lastmod>
+    <lastmod>${product.created_at ? new Date(product.created_at).toISOString() : new Date().toISOString()}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>`,

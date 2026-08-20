@@ -5,6 +5,7 @@ import { signIn, useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
+import { useTranslation } from "@/hooks/use-translation";
 import { useState, useEffect, Suspense } from "react";
 import { ShieldCheck } from "lucide-react";
 
@@ -66,6 +67,7 @@ function SignInFormContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session, status } = useSession();
+  const { t } = useTranslation();
   const [error, setError] = useState<string | null>(null);
 
   // ── Post-login redirect ──────────────────────────────────────────────────
@@ -92,13 +94,14 @@ function SignInFormContent() {
     }
   }, [searchParams]);
 
-  // callbackUrl preserved so OAuth providers can return to /signin with it intact
+  // callbackUrl preserved so OAuth providers can return here with it intact.
+  // Default to "/" (not "/signin") to avoid a post-OAuth redirect loop.
   const callbackUrl =
-    searchParams.get("callbackUrl") ?? "/signin";
+    searchParams.get("callbackUrl") ?? "/";
   const safeCallback =
     callbackUrl.startsWith("/") && !callbackUrl.startsWith("//")
       ? callbackUrl
-      : "/signin";
+      : "/";
 
   return (
     <>
@@ -113,13 +116,12 @@ function SignInFormContent() {
           unoptimized
         />
       </div>
-      <p className="section-kicker text-center">Multi-Vendor Marketplace</p>
+      <p className="section-kicker text-center">{t("signin_kicker")}</p>
       <h1 className="mt-2 text-3xl font-extrabold text-brand-deep text-center">
-        Sign in to Bushbuyer
+        {t("signin_title")}
       </h1>
       <p className="mt-3 text-sm text-foreground/70 text-center leading-relaxed">
-        Access your buyer account, store dashboard, or seller portal securely with
-        single-click OAuth.
+        {t("signin_desc")}
       </p>
 
       {error && (
@@ -141,7 +143,7 @@ function SignInFormContent() {
             height={22}
             unoptimized
           />
-          <span>Continue with Google</span>
+          <span>{t("signin_google")}</span>
         </button>
 
         <button
@@ -156,18 +158,17 @@ function SignInFormContent() {
             height={22}
             unoptimized
           />
-          <span>Continue with Facebook</span>
+          <span>{t("signin_facebook")}</span>
         </button>
       </div>
 
       <div className="mt-10 space-y-3 border-t border-border/60 pt-6 text-center">
         <div className="flex items-center justify-center gap-2 text-xs font-medium text-foreground/70">
           <ShieldCheck className="h-4 w-4 text-emerald-600" />
-          <span>Enterprise Secure OAuth 2.0 Authentication</span>
+          <span>{t("signin_oauth_label")}</span>
         </div>
         <p className="text-xs text-foreground/60">
-          First-time sign-ins automatically initialize a customer account. Store
-          staff and owners receive role privileges automatically.
+          {t("signin_auto_account")}
         </p>
       </div>
     </>
@@ -175,6 +176,8 @@ function SignInFormContent() {
 }
 
 export default function SignInPage() {
+  const { t } = useTranslation();
+
   return (
     <div className="min-h-screen bg-gray-50/50 flex flex-col">
       <SiteHeader />
@@ -183,7 +186,7 @@ export default function SignInPage() {
           <Suspense
             fallback={
               <div className="flex justify-center py-12">
-                Loading authentication...
+                {t("signin_loading")}
               </div>
             }
           >
@@ -195,3 +198,4 @@ export default function SignInPage() {
     </div>
   );
 }
+

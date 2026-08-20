@@ -5,6 +5,8 @@ type PublicFaq = {
   id: number;
   question: string;
   answer: string;
+  question_fr?: string | null;
+  answer_fr?: string | null;
   category: string;
   updated_at: string;
 };
@@ -12,7 +14,7 @@ type PublicFaq = {
 export async function GET() {
   try {
     const faqs = await query<PublicFaq[]>(
-      `SELECT id, question, answer, category, updated_at
+      `SELECT id, question, answer, question_fr, answer_fr, category, updated_at
        FROM faq
        ORDER BY category ASC, updated_at DESC`,
     );

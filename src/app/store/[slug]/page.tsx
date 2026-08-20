@@ -8,6 +8,7 @@ import { FollowButton } from "@/components/store/follow-button";
 import { ShareModal } from "@/components/share-modal";
 import { notFound } from "next/navigation";
 import { StoreAttributor } from "@/components/store-attributor";
+import { StoreBannerHeader } from "@/components/store/store-banner-header";
 import { query } from "@/lib/db";
 import { ShieldCheck, Star, MapPin, Phone, Mail, Clock, ShoppingBag, Users, Calendar, CircleHelp, Globe } from "lucide-react";
 
@@ -71,20 +72,16 @@ export default async function StoreProfilePage({ params }: { params: Promise<{ s
 
   return (
     <div className="min-h-screen bg-gray-50/50 flex flex-col">
-      <StoreAttributor storeId={store.id} />
+      <StoreAttributor storeId={store.id} storeSlug={store.slug} />
       <SiteHeader />
 
       <main className="flex-1 pb-16">
-        {/* Store Banner */}
-        <div className="relative h-64 sm:h-80 w-full bg-gradient-to-r from-emerald-900 via-teal-800 to-emerald-950 overflow-hidden">
-          {store.banner ? (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img src={store.banner} alt={store.name} className="w-full h-full object-cover opacity-80" />
-          ) : (
-            <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px]" />
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
-        </div>
+        {/* Store Banner & Cover Image Customizer */}
+        <StoreBannerHeader
+          storeId={store.id}
+          storeName={store.name}
+          initialBanner={store.banner ?? null}
+        />
 
         {/* Store Info Header Card */}
         <div className="container-shell -mt-20 relative z-10">
@@ -206,51 +203,100 @@ export default async function StoreProfilePage({ params }: { params: Promise<{ s
           {/* Store FAQ Section */}
           {faqs.length > 0 && (
             <div className="mt-14">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <p className="section-kicker">
-                    {faqIsGlobalFallback ? "Platform FAQ" : "Store FAQ"}
-                  </p>
-                  <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                    <CircleHelp className="w-6 h-6 text-emerald-600" />
-                    Frequently Asked Questions
-                  </h2>
-                </div>
-                {faqIsGlobalFallback && (
-                  <span className="inline-flex items-center gap-1.5 rounded-xl border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700">
-                    <Globe className="w-3.5 h-3.5" />
-                    Platform-wide FAQ
-                  </span>
-                )}
-              </div>
-
-              <div className="space-y-4">
-                {Object.entries(faqGrouped).map(([cat, items]) => (
-                  <div key={cat} className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-                    <h3 className="mb-4 flex items-center justify-between text-base font-bold text-gray-900">
-                      {cat}
-                      <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                        {items.length}
+              {faqIsGlobalFallback ? (
+                /* ── Platform FAQ: collapsed by default ── */
+                <details className="group rounded-2xl border border-gray-200 bg-white shadow-sm">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-6 py-5 marker:hidden">
+                    <div className="flex items-center gap-3">
+                      <CircleHelp className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+                      <div>
+                        <p className="section-kicker mb-0.5">Platform FAQ</p>
+                        <h2 className="text-lg font-bold text-gray-900 leading-tight">
+                          Frequently Asked Questions
+                        </h2>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      <span className="inline-flex items-center gap-1.5 rounded-xl border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700">
+                        <Globe className="w-3.5 h-3.5" />
+                        Platform-wide · {faqs.length} Q&amp;A
                       </span>
-                    </h3>
-                    <div className="space-y-2">
-                      {items.map((faq) => (
-                        <details
-                          key={faq.id}
-                          className="group rounded-xl border border-gray-200 bg-gray-50 p-4 open:bg-white open:shadow-sm"
-                        >
-                          <summary className="cursor-pointer list-none pr-6 text-sm font-semibold text-gray-800 marker:hidden">
-                            {faq.question}
-                          </summary>
-                          <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-gray-700">
-                            {faq.answer}
-                          </p>
-                        </details>
-                      ))}
+                      <span className="rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-xs font-semibold text-gray-500 transition-all group-open:rotate-180">
+                        ▼
+                      </span>
+                    </div>
+                  </summary>
+
+                  <div className="border-t border-gray-100 px-6 pb-6 pt-4 space-y-4">
+                    {Object.entries(faqGrouped).map(([cat, items]) => (
+                      <div key={cat} className="rounded-2xl border border-gray-100 bg-gray-50 p-5">
+                        <h3 className="mb-4 flex items-center justify-between text-base font-bold text-gray-900">
+                          {cat}
+                          <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                            {items.length}
+                          </span>
+                        </h3>
+                        <div className="space-y-2">
+                          {items.map((faq) => (
+                            <details
+                              key={faq.id}
+                              className="group/faq rounded-xl border border-gray-200 bg-white p-4 open:shadow-sm"
+                            >
+                              <summary className="cursor-pointer list-none pr-6 text-sm font-semibold text-gray-800 marker:hidden">
+                                {faq.question}
+                              </summary>
+                              <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-gray-700">
+                                {faq.answer}
+                              </p>
+                            </details>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              ) : (
+                /* ── Store-specific FAQ: always visible ── */
+                <>
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <p className="section-kicker">Store FAQ</p>
+                      <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                        <CircleHelp className="w-6 h-6 text-emerald-600" />
+                        Frequently Asked Questions
+                      </h2>
                     </div>
                   </div>
-                ))}
-              </div>
+
+                  <div className="space-y-4">
+                    {Object.entries(faqGrouped).map(([cat, items]) => (
+                      <div key={cat} className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                        <h3 className="mb-4 flex items-center justify-between text-base font-bold text-gray-900">
+                          {cat}
+                          <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                            {items.length}
+                          </span>
+                        </h3>
+                        <div className="space-y-2">
+                          {items.map((faq) => (
+                            <details
+                              key={faq.id}
+                              className="group rounded-xl border border-gray-200 bg-gray-50 p-4 open:bg-white open:shadow-sm"
+                            >
+                              <summary className="cursor-pointer list-none pr-6 text-sm font-semibold text-gray-800 marker:hidden">
+                                {faq.question}
+                              </summary>
+                              <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-gray-700">
+                                {faq.answer}
+                              </p>
+                            </details>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>

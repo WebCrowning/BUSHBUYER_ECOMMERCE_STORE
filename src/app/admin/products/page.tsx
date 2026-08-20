@@ -97,7 +97,7 @@ export default function AdminProductsPage() {
   }
 
   async function loadUploadedImages() {
-    const response = await fetch("/api/admin/upload");
+    const response = await fetch("/api/admin/upload?type=product");
     const payload = (await response.json().catch(() => null)) as
       | { images?: string[] }
       | null;
@@ -168,7 +168,7 @@ export default function AdminProductsPage() {
     const fd = new FormData();
     fd.append("file", file);
     try {
-      const response = await fetch("/api/admin/upload", { method: "POST", body: fd });
+      const response = await fetch("/api/admin/upload?type=product", { method: "POST", body: fd });
       const payload = (await response.json()) as { imageUrl?: string; error?: string };
 
       if (!response.ok || !payload.imageUrl) {

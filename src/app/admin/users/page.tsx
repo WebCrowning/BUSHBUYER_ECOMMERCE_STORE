@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { Lock, Unlock, Loader } from "lucide-react";
+import { Lock, Unlock, Loader, Trash2 } from "lucide-react";
 
 interface User {
   id: number;
@@ -35,7 +35,9 @@ export default function UsersManagementPage() {
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState<PaginationData | null>(null);
   const [blockingUserId, setBlockingUserId] = useState<number | null>(null);
+  const [deletingUserId, setDeletingUserId] = useState<number | null>(null);
   const [blockReason, setBlockReason] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -114,6 +116,31 @@ export default function UsersManagementPage() {
     }
   }
 
+  async function handleDeleteUser(userId: number) {
+    setIsDeleting(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const res = await fetch(`/api/admin/users?id=${userId}`, {
+        method: "DELETE",
+      });
+
+      const data = (await res.json()) as ApiResponse & { message?: string };
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to delete user");
+      }
+
+      setSuccess(data.message || "User deleted successfully!");
+      setDeletingUserId(null);
+      await fetchUsers();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete user");
+    } finally {
+      setIsDeleting(false);
+    }
+  }
+
   if (loading && users.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 p-8">
@@ -130,13 +157,15 @@ export default function UsersManagementPage() {
         <h1 className="text-3xl font-bold text-gray-900 mb-8">User Management</h1>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
-            {error}
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6 flex justify-between items-center">
+            <span>{error}</span>
+            <button onClick={() => setError(null)} className="text-red-700 font-bold ml-4">✕</button>
           </div>
         )}
         {success && (
-          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-6">
-            {success}
+          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-6 flex justify-between items-center">
+            <span>{success}</span>
+            <button onClick={() => setSuccess(null)} className="text-green-700 font-bold ml-4">✕</button>
           </div>
         )}
 
@@ -187,7 +216,14 @@ export default function UsersManagementPage() {
                 <div key={user.id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900">{user.name}</h3>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-gray-900">{user.name}</h3>
+                        {user.role && user.role !== "user" && user.role !== "customer" && (
+                          <span className="px-2 py-0.5 text-xs font-semibold rounded bg-purple-100 text-purple-800 uppercase">
+                            {user.role}
+                          </span>
+                        )}
+                      </div>
                       <p className="text-sm text-gray-600 mt-1">{user.email}</p>
                       {user.is_blocked ? (
                         <div className="mt-2">
@@ -210,8 +246,31 @@ export default function UsersManagementPage() {
                       </p>
                     </div>
 
-                    <div className="flex gap-2 ml-4 flex-shrink-0">
-                      {blockingUserId === user.id ? (
+                    <div className="flex gap-2 ml-4 flex-shrink-0 items-start">
+                      {deletingUserId === user.id ? (
+                        <div className="w-64 bg-white border border-red-300 rounded-lg p-3 shadow-lg">
+                          <p className="text-sm font-semibold text-red-700 mb-1">Delete User?</p>
+                          <p className="text-xs text-gray-600 mb-3">
+                            Are you sure you want to permanently delete <strong>{user.name}</strong>? This action cannot be undone.
+                          </p>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleDeleteUser(user.id)}
+                              disabled={isDeleting}
+                              className="flex-1 px-3 py-1 bg-red-600 text-white rounded text-sm font-medium hover:bg-red-700 disabled:opacity-50"
+                            >
+                              {isDeleting ? "Deleting..." : "Confirm Delete"}
+                            </button>
+                            <button
+                              onClick={() => setDeletingUserId(null)}
+                              disabled={isDeleting}
+                              className="flex-1 px-3 py-1 bg-gray-300 text-gray-700 rounded text-sm font-medium hover:bg-gray-400 disabled:opacity-50"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : blockingUserId === user.id ? (
                         <div className="w-64 bg-white border border-gray-300 rounded-lg p-3 shadow-lg">
                           <label className="block text-sm font-medium text-gray-700 mb-2">
                             Block Reason
@@ -255,14 +314,46 @@ export default function UsersManagementPage() {
                           ) : (
                             <button
                               onClick={() => setBlockingUserId(user.id)}
-                              disabled={user.email === session?.user?.email}
+                              disabled={
+                                user.email === session?.user?.email ||
+                                user.role === "admin" ||
+                                user.role === "super_admin" ||
+                                user.role === "platform_admin"
+                              }
                               className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors flex items-center gap-2 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                              title={user.email === session?.user?.email ? "Cannot block yourself" : "Block user"}
+                              title={
+                                user.email === session?.user?.email
+                                  ? "Cannot block yourself"
+                                  : user.role === "admin" || user.role === "super_admin" || user.role === "platform_admin"
+                                  ? "Cannot block admin users"
+                                  : "Block user"
+                              }
                             >
                               <Lock size={16} />
                               Block
                             </button>
                           )}
+
+                          <button
+                            onClick={() => setDeletingUserId(user.id)}
+                            disabled={
+                              user.email === session?.user?.email ||
+                              user.role === "admin" ||
+                              user.role === "super_admin" ||
+                              user.role === "platform_admin"
+                            }
+                            className="px-3 py-2 bg-red-100 text-red-700 hover:bg-red-200 rounded-lg transition-colors flex items-center gap-1.5 text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed border border-red-200"
+                            title={
+                              user.email === session?.user?.email
+                                ? "Cannot delete yourself"
+                                : user.role === "admin" || user.role === "super_admin" || user.role === "platform_admin"
+                                ? "Cannot delete admin users"
+                                : "Delete user"
+                            }
+                          >
+                            <Trash2 size={16} />
+                            Delete
+                          </button>
                         </>
                       )}
                     </div>
