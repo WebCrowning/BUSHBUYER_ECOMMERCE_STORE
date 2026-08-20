@@ -5,6 +5,7 @@ import type { Store } from "@/types/marketplace";
 import { OrderStatusBadge } from "@/components/order-status-badge";
 import { CheckCircle, AlertCircle, ShoppingCart } from "lucide-react";
 import Link from "next/link";
+import { USD_TO_XAF, formatCurrency } from "@/lib/utils";
 
 type OrderItem = {
   id: number;
@@ -94,6 +95,7 @@ export default function SellerOrdersClient({
           <div className="text-right">
             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Total</p>
             <p className="text-2xl font-extrabold text-slate-900">${Number(order.total_price).toFixed(2)}</p>
+            <p className="text-xs font-bold text-emerald-700">{formatCurrency(Math.round(Number(order.total_price) * USD_TO_XAF), "XAF")} CFA</p>
           </div>
         </div>
 

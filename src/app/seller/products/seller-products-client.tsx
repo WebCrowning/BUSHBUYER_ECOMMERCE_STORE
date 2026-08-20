@@ -6,6 +6,8 @@ import type { Store } from "@/types/marketplace";
 import { Package, Plus, Trash2, Edit2, AlertTriangle, Image as ImageIcon, Store as StoreIcon, Loader2, ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 
+import { USD_TO_XAF, formatCurrency } from "@/lib/utils";
+
 type ProductForm = {
   name: string;
   price: string;
@@ -273,7 +275,16 @@ export default function SellerProductsClient({
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-foreground/60">Price (USD) *</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-bold uppercase tracking-wide text-foreground/60">
+                Price (USD & CFA) *
+              </label>
+              {Number(form.price) > 0 && (
+                <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                  ≈ {formatCurrency(Math.round(Number(form.price) * USD_TO_XAF), "XAF")} CFA
+                </span>
+              )}
+            </div>
             <input
               required
               type="number"
@@ -284,10 +295,27 @@ export default function SellerProductsClient({
               value={form.price}
               onChange={(e) => setForm((v) => ({ ...v, price: e.target.value }))}
             />
+            <p className="mt-1 text-[11px] text-foreground/50 flex items-center justify-between">
+              <span>Base currency: USD ($)</span>
+              <span className="font-semibold text-emerald-600">
+                {Number(form.price) > 0
+                  ? `$${Number(form.price).toFixed(2)} = ${formatCurrency(Math.round(Number(form.price) * USD_TO_XAF), "XAF")} CFA`
+                  : `1 USD = ${USD_TO_XAF} CFA`}
+              </span>
+            </p>
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-foreground/60">Transport Fee (USD)</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-bold uppercase tracking-wide text-foreground/60">
+                Transport Fee (USD & CFA)
+              </label>
+              {Number(form.transportFee) > 0 && (
+                <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                  ≈ {formatCurrency(Math.round(Number(form.transportFee) * USD_TO_XAF), "XAF")} CFA
+                </span>
+              )}
+            </div>
             <input
               type="number"
               min="0"
@@ -297,6 +325,14 @@ export default function SellerProductsClient({
               value={form.transportFee}
               onChange={(e) => setForm((v) => ({ ...v, transportFee: e.target.value }))}
             />
+            <p className="mt-1 text-[11px] text-foreground/50 flex items-center justify-between">
+              <span>Delivery / transport cost</span>
+              {Number(form.transportFee) > 0 && (
+                <span className="font-semibold text-emerald-600">
+                  ${Number(form.transportFee).toFixed(2)} = {formatCurrency(Math.round(Number(form.transportFee) * USD_TO_XAF), "XAF")} CFA
+                </span>
+              )}
+            </p>
           </div>
 
           <div>
@@ -461,7 +497,7 @@ export default function SellerProductsClient({
               <tr>
                 <th className="px-4 py-3">Product</th>
                 <th className="px-3 py-3">Category</th>
-                <th className="px-3 py-3">Price</th>
+                <th className="px-3 py-3">Price (USD / CFA)</th>
                 <th className="px-3 py-3">Stock</th>
                 <th className="px-3 py-3 text-right">Actions</th>
               </tr>
@@ -497,7 +533,12 @@ export default function SellerProductsClient({
                         {p.category}
                       </span>
                     </td>
-                    <td className="px-3 py-3 font-bold text-brand-deep">${Number(p.price).toFixed(2)}</td>
+                    <td className="px-3 py-3">
+                      <div className="font-bold text-brand-deep">${Number(p.price).toFixed(2)}</div>
+                      <div className="text-[10px] font-semibold text-emerald-700">
+                        {formatCurrency(Math.round(Number(p.price) * USD_TO_XAF), "XAF")} CFA
+                      </div>
+                    </td>
                     <td className="px-3 py-3">
                       {Number(p.stockPackages) <= LOW_STOCK_THRESHOLD ? (
                         <span className="rounded-md bg-red-50 border border-red-200 px-2 py-0.5 text-[11px] font-bold text-red-600">

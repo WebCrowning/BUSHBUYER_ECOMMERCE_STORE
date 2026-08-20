@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Product } from "@/types";
+import { USD_TO_XAF, formatCurrency } from "@/lib/utils";
 
 type ProductForm = {
   name: string;
@@ -398,7 +399,14 @@ export default function AdminProductsPage() {
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           <input className="rounded-xl border border-border bg-white px-4 py-2 text-sm" placeholder="Product name" value={form.name} onChange={(e) => setForm((v) => ({ ...v, name: e.target.value }))} />
           <label className="space-y-1">
-            <span className="block text-xs font-semibold uppercase tracking-wide text-foreground/65">Product price (USD)</span>
+            <div className="flex items-center justify-between">
+              <span className="block text-xs font-semibold uppercase tracking-wide text-foreground/65">Product price (USD & CFA)</span>
+              {Number(form.price) > 0 && (
+                <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                  ≈ {formatCurrency(Math.round(Number(form.price) * USD_TO_XAF), "XAF")} CFA
+                </span>
+              )}
+            </div>
             <input
               type="number"
               min="0"
@@ -410,7 +418,14 @@ export default function AdminProductsPage() {
             />
           </label>
           <label className="space-y-1">
-            <span className="block text-xs font-semibold uppercase tracking-wide text-foreground/65">Transport fee (USD)</span>
+            <div className="flex items-center justify-between">
+              <span className="block text-xs font-semibold uppercase tracking-wide text-foreground/65">Transport fee (USD & CFA)</span>
+              {Number(form.transportFee) > 0 && (
+                <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                  ≈ {formatCurrency(Math.round(Number(form.transportFee) * USD_TO_XAF), "XAF")} CFA
+                </span>
+              )}
+            </div>
             <input
               type="number"
               min="0"
@@ -739,7 +754,7 @@ export default function AdminProductsPage() {
                       </span>
                     ) : null}
                   </div>
-                  <p className="text-xs text-foreground/60">Price: ${Number(product.price).toFixed(2)} per {product.packageName} ({Number(product.unitValue)} {product.unitType}) | Transport: ${Number(product.transportFee ?? 0).toFixed(2)} | Stock: {Number(product.stockPackages)} packages | Zoom: {Math.max(80, Math.min(180, Number(product.imageZoom ?? 100)))}%</p>
+                  <p className="text-xs text-foreground/60">Price: ${Number(product.price).toFixed(2)} ({formatCurrency(Math.round(Number(product.price) * USD_TO_XAF), "XAF")} CFA) per {product.packageName} ({Number(product.unitValue)} {product.unitType}) | Transport: ${Number(product.transportFee ?? 0).toFixed(2)} ({formatCurrency(Math.round(Number(product.transportFee ?? 0) * USD_TO_XAF), "XAF")} CFA) | Stock: {Number(product.stockPackages)} packages | Zoom: {Math.max(80, Math.min(180, Number(product.imageZoom ?? 100)))}%</p>
                 </div>
               </div>
               <div className="flex gap-2">

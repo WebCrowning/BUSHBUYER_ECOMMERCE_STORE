@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { ProductPriceDisplay } from "@/components/product-price-display";
 
 type FeaturedProductCardProps = {
   id: number;
@@ -21,7 +22,6 @@ export function FeaturedProductCard({
   shortNote,
 }: FeaturedProductCardProps) {
   const normalizedPrice = Number(price);
-  const displayPrice = Number.isFinite(normalizedPrice) ? normalizedPrice.toFixed(2) : "0.00";
 
   return (
     <article className="group glass-card overflow-hidden rounded-2xl">
@@ -57,7 +57,7 @@ export function FeaturedProductCard({
         <h3 className="text-lg font-bold text-foreground">{name}</h3>
         <p className="text-sm leading-6 text-foreground/70">{shortNote}</p>
         <div className="flex items-center justify-between">
-          <span className="text-base font-bold text-brand-deep">${displayPrice}</span>
+          <ProductPriceDisplay price={normalizedPrice} className="text-base font-bold text-brand-deep" />
           <Link
             href={`/products/${id}`}
             className="rounded-full border border-brand/30 px-3 py-1.5 text-sm font-semibold text-brand transition-colors hover:bg-brand hover:text-white"

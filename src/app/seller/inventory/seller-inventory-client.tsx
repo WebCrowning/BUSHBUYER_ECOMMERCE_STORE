@@ -5,6 +5,7 @@ import type { Product } from "@/types";
 import type { Store } from "@/types/marketplace";
 import { Boxes, Search, AlertTriangle, CheckCircle, Package, RefreshCw, Store as StoreIcon, Edit2, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { USD_TO_XAF, formatCurrency } from "@/lib/utils";
 
 type StockFilter = "all" | "instock" | "low" | "out";
 
@@ -254,7 +255,7 @@ export default function SellerInventoryClient({
               <tr>
                 <th className="px-4 py-3">Product Name</th>
                 <th className="px-3 py-3">Category</th>
-                <th className="px-3 py-3">Price</th>
+                <th className="px-3 py-3">Price (USD / CFA)</th>
                 <th className="px-3 py-3">Package Config</th>
                 <th className="px-3 py-3">Stock Packages</th>
                 <th className="px-3 py-3">Status</th>
@@ -276,7 +277,12 @@ export default function SellerInventoryClient({
                     <tr key={p.id} className="hover:bg-surface transition-colors">
                       <td className="px-4 py-3 font-bold text-brand-deep">{p.name}</td>
                       <td className="px-3 py-3 text-foreground/60">{p.category}</td>
-                      <td className="px-3 py-3 font-bold text-brand-deep">${Number(p.price).toFixed(2)}</td>
+                      <td className="px-3 py-3 font-bold text-brand-deep">
+                        <div>${Number(p.price).toFixed(2)}</div>
+                        <div className="text-[10px] font-semibold text-emerald-700">
+                          {formatCurrency(Math.round(Number(p.price) * USD_TO_XAF), "XAF")} CFA
+                        </div>
+                      </td>
                       <td className="px-3 py-3 text-foreground/60">
                         {p.packageName} ({Number(p.unitValue)} {p.unitType})
                       </td>
