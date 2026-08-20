@@ -41,12 +41,14 @@ export async function PATCH(request: Request, { params }: Params) {
   }
 
   // Accept admin (/uploads/products/), seller (/uploads/seller/), and legacy (/uploads/) paths
-  const validPrefix =
-    image.startsWith("/uploads/products/") ||
-    image.startsWith("/uploads/seller/") ||
-    image.startsWith("/uploads/");
-  if (image && !validPrefix) {
-    return NextResponse.json({ error: "Invalid image path" }, { status: 400 });
+  if (image) {
+    const validPrefix =
+      image.startsWith("/uploads/products/") ||
+      image.startsWith("/uploads/seller/") ||
+      image.startsWith("/uploads/");
+    if (!validPrefix) {
+      return NextResponse.json({ error: "Invalid image path" }, { status: 400 });
+    }
   }
 
   if (typeof imageZoom === "number" && (!Number.isInteger(imageZoom) || imageZoom < 80 || imageZoom > 180)) {
