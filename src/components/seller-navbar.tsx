@@ -22,6 +22,7 @@ import {
   Bell,
   ExternalLink,
   ShoppingBag,
+  MapPin,
   type LucideIcon,
 } from "lucide-react";
 import { StoreSwitcher } from "@/components/store-switcher";
@@ -59,6 +60,8 @@ export default function SellerNavbar({
 
   const sellerNavItems: SellerNavItem[] = [
     { href: "/seller/dashboard", label: "Store Overview", icon: LayoutDashboard },
+    { href: "/seller/notifications", label: "Notifications", icon: Bell },
+    { href: "/seller/location", label: "Store Location & GPS", icon: MapPin },
     { href: "/seller/products", label: "Store Products", icon: Package },
     { href: "/seller/inventory", label: "Inventory Management", icon: Boxes },
     { href: "/seller/orders", label: "Store Orders", icon: ShoppingCart },
@@ -164,6 +167,7 @@ export default function SellerNavbar({
               {sellerNavItems.map((item) => {
                 const ItemIcon = item.icon;
                 const targetHref = getLinkHref(item.href);
+                const isNotifications = item.href === "/seller/notifications";
                 return (
                   <Link key={item.href} href={targetHref} className={linkClass(item.href)}>
                     <span className="flex items-center justify-between gap-2">
@@ -171,6 +175,11 @@ export default function SellerNavbar({
                         <ItemIcon size={14} />
                         <span>{item.label}</span>
                       </span>
+                      {isNotifications && unreadCount > 0 && (
+                        <span className="min-w-5 rounded-full bg-brand px-1.5 py-0.5 text-center text-[10px] font-bold text-white">
+                          {unreadCount > 99 ? "99+" : unreadCount}
+                        </span>
+                      )}
                     </span>
                   </Link>
                 );
@@ -246,6 +255,7 @@ export default function SellerNavbar({
           {sellerNavItems.map((item) => {
             const ItemIcon = item.icon;
             const targetHref = getLinkHref(item.href);
+            const isNotifications = item.href === "/seller/notifications";
             return (
               <Link key={item.href} href={targetHref} className={linkClass(item.href)}>
                 <span className="flex items-center justify-between gap-2">
@@ -253,6 +263,11 @@ export default function SellerNavbar({
                     <ItemIcon size={14} />
                     <span>{item.label}</span>
                   </span>
+                  {isNotifications && unreadCount > 0 && (
+                    <span className="min-w-5 rounded-full bg-brand px-1.5 py-0.5 text-center text-[10px] font-bold text-white">
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </span>
+                  )}
                 </span>
               </Link>
             );

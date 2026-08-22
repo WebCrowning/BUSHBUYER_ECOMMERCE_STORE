@@ -350,6 +350,60 @@ async function ensurePackageSchema() {
         );
       }
 
+      await pool.execute(
+        `CREATE TABLE IF NOT EXISTS categories (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          name VARCHAR(120) NOT NULL,
+          slug VARCHAR(120) NOT NULL UNIQUE,
+          icon VARCHAR(20) NULL DEFAULT '📦',
+          description TEXT NULL,
+          color VARCHAR(20) NOT NULL DEFAULT '#6B7280',
+          sort_order INT NOT NULL DEFAULT 0,
+          is_active TINYINT(1) NOT NULL DEFAULT 1,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          INDEX idx_categories_active_sort (is_active, sort_order)
+        )`
+      );
+
+      const storeColumns = [
+        { name: "quarter", ddl: "ALTER TABLE stores ADD COLUMN quarter VARCHAR(120) NULL" },
+        { name: "landmark", ddl: "ALTER TABLE stores ADD COLUMN landmark VARCHAR(190) NULL" },
+        { name: "latitude", ddl: "ALTER TABLE stores ADD COLUMN latitude DECIMAL(10,8) NULL" },
+        { name: "longitude", ddl: "ALTER TABLE stores ADD COLUMN longitude DECIMAL(11,8) NULL" },
+        { name: "gps_coordinates", ddl: "ALTER TABLE stores ADD COLUMN gps_coordinates VARCHAR(100) NULL" },
+      ];
+
+      for (const col of storeColumns) {
+        const exists = await hasColumn("stores", col.name);
+        if (!exists) {
+          try {
+            await pool.execute(col.ddl);
+          } catch {
+            // Ignore if column already exists
+          }
+        }
+      }
+
+      const storeAppColumns = [
+        { name: "application_fee_cfa", ddl: "ALTER TABLE store_applications ADD COLUMN application_fee_cfa INT NOT NULL DEFAULT 5000" },
+        { name: "payment_status", ddl: "ALTER TABLE store_applications ADD COLUMN payment_status ENUM('pending', 'paid', 'failed') NOT NULL DEFAULT 'pending'" },
+        { name: "payment_reference", ddl: "ALTER TABLE store_applications ADD COLUMN payment_reference VARCHAR(190) NULL" },
+        { name: "payment_gateway", ddl: "ALTER TABLE store_applications ADD COLUMN payment_gateway VARCHAR(50) NULL DEFAULT 'fapshi'" },
+        { name: "paid_at", ddl: "ALTER TABLE store_applications ADD COLUMN paid_at TIMESTAMP NULL" },
+      ];
+
+      for (const col of storeAppColumns) {
+        const exists = await hasColumn("store_applications", col.name);
+        if (!exists) {
+          try {
+            await pool.execute(col.ddl);
+          } catch {
+            // Ignore if column already exists
+          }
+        }
+      }
+
       try {
         await pool.execute("ALTER TABLE users MODIFY COLUMN role VARCHAR(50) DEFAULT 'user'");
       } catch {

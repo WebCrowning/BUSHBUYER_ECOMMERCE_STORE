@@ -9,7 +9,7 @@ import Link from "next/link";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import SellerNavbar from "@/components/seller-navbar";
-import { Store, DollarSign, Package, ShoppingBag, Users, ArrowUpRight, Truck, UserPlus, ShieldCheck } from "lucide-react";
+import { Store, DollarSign, Package, ShoppingBag, Users, ArrowUpRight, Truck, UserPlus, ShieldCheck, MapPin } from "lucide-react";
 
 export default async function SellerDashboardPage({
   searchParams,
@@ -54,7 +54,7 @@ export default async function SellerDashboardPage({
 
           <div className="space-y-6">
             {/* Store Portal Header */}
-            <div className="rounded-2xl border border-border bg-white p-6 sm:p-8 shadow-sm  flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="rounded-2xl border border-border bg-white p-6 sm:p-8 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div>
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 font-bold border border-emerald-200">
@@ -67,17 +67,22 @@ export default async function SellerDashboardPage({
                         {primaryStore.store_status}
                       </span>
                       <span className="text-xs text-foreground/60 font-mono">/store/{primaryStore.slug}</span>
+                      {primaryStore.city && (
+                        <span className="text-xs text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md font-medium border border-emerald-200 flex items-center gap-1">
+                          <MapPin size={11} /> {primaryStore.quarter ? `${primaryStore.quarter}, ` : ""}{primaryStore.city}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-wrap">
                 <Link
-                  href={`/store/${primaryStore.slug}`}
-                  className="px-4 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold rounded-xl flex items-center gap-2 border border-emerald-200 transition-all shadow-sm"
+                  href={`/seller/location?storeId=${primaryStore.id}`}
+                  className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl flex items-center gap-2 shadow-sm transition-all"
                 >
-                  <Store className="w-3.5 h-3.5 text-emerald-600" /> Upload Cover Photo
+                  <MapPin className="w-3.5 h-3.5" /> Store GPS Location
                 </Link>
                 <Link
                   href={`/store/${primaryStore.slug}`}

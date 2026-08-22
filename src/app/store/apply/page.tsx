@@ -6,7 +6,24 @@ import Link from "next/link";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { useTranslation } from "@/hooks/use-translation";
-import { Store, CheckCircle, Clock, XCircle, ArrowRight, Sparkles, Building2, Phone, Mail, FileText } from "lucide-react";
+import {
+  Store,
+  CheckCircle,
+  Clock,
+  XCircle,
+  ArrowRight,
+  Sparkles,
+  Building2,
+  Phone,
+  Mail,
+  FileText,
+  CreditCard,
+  Check,
+  Loader2,
+  ShieldCheck,
+  Zap,
+} from "lucide-react";
+import { CAMEROON_MARKET_CATEGORIES } from "@/lib/cameroon-locations";
 
 interface StoreApplication {
   id: number;
@@ -19,6 +36,10 @@ interface StoreApplication {
   additional_notes: string | null;
   status: "pending" | "approved" | "rejected";
   admin_notes: string | null;
+  application_fee_cfa?: number;
+  payment_status?: "pending" | "paid" | "failed";
+  payment_reference?: string | null;
+  paid_at?: string | null;
   created_at: string;
 }
 
@@ -27,16 +48,17 @@ export default function ApplyStorePage() {
   const { t } = useTranslation();
   const [applications, setApplications] = useState<StoreApplication[]>([]);
   const [loadingApps, setLoadingApps] = useState(true);
-  
+
   // Form State
   const [storeName, setStoreName] = useState("");
-  const [category, setCategory] = useState("Raw Foods & Produce");
+  const [category, setCategory] = useState("Electronics & Computing");
   const [productsDesc, setProductsDesc] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [notes, setNotes] = useState("");
-  
+
   const [submitting, setSubmitting] = useState(false);
+  const [payingAppId, setPayingAppId] = useState<number | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
   const [showFormOverride, setShowFormOverride] = useState(false);
@@ -78,11 +100,11 @@ export default function ApplyStorePage() {
     setSuccessMsg("");
 
     if (!storeName.trim()) {
-      setErrorMsg(t("apply_error_store_name"));
+      setErrorMsg("Store name is required.");
       return;
     }
     if (!productsDesc.trim()) {
-      setErrorMsg(t("apply_error_products"));
+      setErrorMsg("Products description is required.");
       return;
     }
 
@@ -108,7 +130,7 @@ export default function ApplyStorePage() {
         return;
       }
 
-      setSuccessMsg(t("apply_success"));
+      setSuccessMsg("Store application created! Please proceed to pay the 5,000 CFA one-time registration fee below to complete submission.");
       setStoreName("");
       setProductsDesc("");
       setNotes("");
@@ -118,6 +140,36 @@ export default function ApplyStorePage() {
       setErrorMsg("An unexpected error occurred. Please try again.");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handlePayFee = async (appId: number) => {
+    try {
+      setPayingAppId(appId);
+      setErrorMsg("");
+
+      const res = await fetch("/api/store-applications/pay", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ applicationId: appId, directConfirm: true }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to process 5,000 CFA payment");
+      }
+
+      if (data.paymentUrl) {
+        window.location.href = data.paymentUrl;
+        return;
+      }
+
+      setSuccessMsg("5,000 CFA Registration Fee paid successfully! Your application is now under admin review.");
+      await loadApplications();
+    } catch (err: any) {
+      setErrorMsg(err.message || "Payment failed. Please try again.");
+    } finally {
+      setPayingAppId(null);
     }
   };
 
@@ -133,16 +185,37 @@ export default function ApplyStorePage() {
         <div className="max-w-3xl mx-auto">
           {/* Header Banner */}
           <div className="text-center mb-10">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-brand/10 border border-brand/20 text-brand text-xs font-semibold uppercase tracking-wider mb-4">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold uppercase tracking-wider mb-4">
               <Sparkles className="w-4 h-4" />
-              {t("apply_badge")}
+              Vendor Registration & Cameroon Marketplace
             </div>
             <h1 className="text-3xl md:text-5xl font-black text-brand-deep tracking-tight">
-              {t("apply_title")}
+              Open Your Store on Bushbuyer
             </h1>
             <p className="mt-4 text-foreground/60 text-base md:text-lg max-w-xl mx-auto">
-              {t("apply_desc")}
+              Join Cameroon&apos;s fastest growing multi-vendor marketplace. Set up your store, turn on GPS location, and reach buyers across Douala, Yaoundé, Buea, Bamenda and beyond.
             </p>
+          </div>
+
+          {/* Pricing & Fee Callout Banner */}
+          <div className="mb-8 rounded-3xl bg-gradient-to-br from-emerald-900 to-teal-950 text-white p-6 sm:p-8 shadow-xl relative overflow-hidden">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 relative z-10">
+              <div className="space-y-2">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-bold uppercase tracking-wider">
+                  <Zap size={13} /> One-Time Application Fee
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-extrabold">5,000 CFA One-Time Fee</h2>
+                <p className="text-xs sm:text-sm text-emerald-100/80 max-w-md leading-relaxed">
+                  Includes full seller dashboard access, live store GPS location tagging, unlimited product catalog, customer direct chat, and order fulfillment.
+                </p>
+              </div>
+
+              <div className="bg-emerald-950/70 p-4 rounded-2xl border border-emerald-700/50 shrink-0 text-center sm:text-right">
+                <span className="text-[10px] uppercase font-bold text-emerald-300 block">Platform Commission</span>
+                <span className="text-2xl font-black text-white">10%</span>
+                <span className="text-[11px] text-emerald-200/70 block mt-0.5">Per completed sale</span>
+              </div>
+            </div>
           </div>
 
           {/* Unauthenticated View */}
@@ -151,15 +224,15 @@ export default function ApplyStorePage() {
               <div className="w-16 h-16 rounded-2xl bg-brand/20 border border-brand/30 text-brand flex items-center justify-center mx-auto mb-6">
                 <Store className="w-8 h-8" />
               </div>
-              <h2 className="text-2xl font-bold text-brand-deep mb-3">{t("apply_login_required")}</h2>
+              <h2 className="text-2xl font-bold text-brand-deep mb-3">Sign in required to apply</h2>
               <p className="text-foreground/60 mb-8 max-w-md mx-auto">
-                {t("apply_login_desc")}
+                Please sign in or create an account to start your store application and verify your seller profile.
               </p>
               <Link
                 href="/signin?callbackUrl=/store/apply"
-                className="inline-flex items-center gap-2 px-8 py-3.5 rounded-full bg-gradient-to-r from-brand to-brand-deep text-white font-bold text-lg hover:shadow-lg hover:shadow-brand/30 transition-all active:scale-95"
+                className="inline-flex items-center gap-2 px-8 py-3.5 rounded-full bg-emerald-600 text-white font-bold text-lg hover:bg-emerald-700 shadow-md transition-all active:scale-95"
               >
-                {t("apply_login_btn")}
+                Sign In to Apply
                 <ArrowRight className="w-5 h-5" />
               </Link>
             </div>
@@ -169,7 +242,7 @@ export default function ApplyStorePage() {
           {authStatus === "loading" || loadingApps ? (
             <div className="rounded-3xl border border-border bg-white p-12 text-center shadow-lg">
               <div className="inline-block animate-spin rounded-full h-10 w-10 border-4 border-brand border-t-transparent mb-4"></div>
-              <p className="text-foreground/60 font-medium">{t("apply_checking")}</p>
+              <p className="text-foreground/60 font-medium">Checking application status...</p>
             </div>
           ) : null}
 
@@ -180,32 +253,32 @@ export default function ApplyStorePage() {
               {approvedApp && !showFormOverride && (
                 <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-8 mb-8 shadow-lg">
                   <div className="flex items-start gap-4">
-                    <div className="p-3 rounded-2xl bg-emerald-500/20 text-emerald-400">
+                    <div className="p-3 rounded-2xl bg-emerald-500/20 text-emerald-600">
                       <CheckCircle className="w-8 h-8" />
                     </div>
                     <div className="flex-1">
-                      <div className="inline-block px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-bold uppercase tracking-wider mb-2">
-                        {t("apply_approved_badge")}
+                      <div className="inline-block px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-700 text-xs font-bold uppercase tracking-wider mb-2">
+                        Store Approved & Active
                       </div>
                       <h2 className="text-2xl font-bold text-brand-deep">
-                        {t("apply_approved_title")} {approvedApp.store_name}
+                        {approvedApp.store_name}
                       </h2>
                       <p className="text-foreground/70 mt-2 text-sm">
-                        {t("apply_approved_desc")}
+                        Your store application has been approved! You can now manage products, set up GPS coordinates, and process orders in your seller portal.
                       </p>
                       <div className="mt-6 flex flex-wrap gap-4">
                         <Link
                           href="/seller/dashboard"
-                          className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-500 transition-colors shadow-lg shadow-emerald-900/40"
+                          className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 transition-colors shadow-md"
                         >
                           <Building2 className="w-4 h-4" />
-                          {t("apply_go_seller")}
+                          Go to Seller Dashboard
                         </Link>
                         <button
                           onClick={() => setShowFormOverride(true)}
                           className="px-4 py-3 rounded-xl border border-border bg-surface text-foreground/70 font-semibold text-sm hover:bg-surface-soft transition-colors"
                         >
-                          {t("apply_another_store")}
+                          Apply for Another Store
                         </button>
                       </div>
                     </div>
@@ -217,204 +290,228 @@ export default function ApplyStorePage() {
               {pendingApp && !showFormOverride && (
                 <div className="rounded-3xl border border-amber-200 bg-amber-50 p-8 mb-8 shadow-lg">
                   <div className="flex items-start gap-4">
-                    <div className="p-3 rounded-2xl bg-amber-500/20 text-amber-400">
+                    <div className="p-3 rounded-2xl bg-amber-500/20 text-amber-600">
                       <Clock className="w-8 h-8" />
                     </div>
                     <div className="flex-1">
-                      <div className="inline-block px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 text-xs font-bold uppercase tracking-wider mb-2">
-                        {t("apply_pending_badge")}
+                      <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
+                        <div className="inline-block px-3 py-1 rounded-full bg-amber-500/20 text-amber-700 text-xs font-bold uppercase tracking-wider">
+                          Application Under Review
+                        </div>
+
+                        {pendingApp.payment_status === "paid" ? (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold border border-emerald-300">
+                            <CheckCircle size={13} /> 5,000 CFA Fee Paid
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-100 text-red-800 text-xs font-bold border border-red-300">
+                            <Clock size={13} /> 5,000 CFA Payment Required
+                          </span>
+                        )}
                       </div>
+
                       <h2 className="text-2xl font-bold text-brand-deep">
                         {pendingApp.store_name}
                       </h2>
                       <p className="text-foreground/70 mt-2 text-sm">
-                        {t("apply_pending_submitted")}{" "}
+                        Submitted on{" "}
                         <span className="font-semibold text-foreground">
                           {new Date(pendingApp.created_at).toLocaleDateString()}
-                        </span>{" "}
-                        {t("apply_pending_being_reviewed")}
+                        </span>
+                        . Our administrative team reviews submissions within 24-48 business hours.
                       </p>
+
+                      {/* Payment Step if not paid */}
+                      {pendingApp.payment_status !== "paid" && (
+                        <div className="mt-5 p-5 rounded-2xl bg-white border border-amber-300 shadow-sm space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h4 className="font-bold text-sm text-gray-900">
+                                Complete One-Time 5,000 CFA Registration Fee
+                              </h4>
+                              <p className="text-xs text-gray-600 mt-0.5">
+                                Pay via MTN Mobile Money, Orange Money, or Credit Card.
+                              </p>
+                            </div>
+                            <span className="text-lg font-extrabold text-emerald-800">5,000 CFA</span>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => handlePayFee(pendingApp.id)}
+                            disabled={payingAppId === pendingApp.id}
+                            className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm py-3 shadow-md transition-all active:scale-95 disabled:opacity-50"
+                          >
+                            {payingAppId === pendingApp.id ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin text-white" />
+                                Processing Payment...
+                              </>
+                            ) : (
+                              <>
+                                <CreditCard className="w-4 h-4" />
+                                Pay 5,000 CFA Fee via Mobile Money
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      )}
+
                       <div className="mt-4 p-4 rounded-xl bg-surface border border-border text-xs text-foreground/60 space-y-1">
-                        <p><strong className="text-foreground/80">{t("apply_pending_category")}</strong> {pendingApp.business_category}</p>
-                        <p><strong className="text-foreground/80">{t("apply_pending_products")}</strong> {pendingApp.products_description}</p>
+                        <p><strong className="text-foreground/80">Category:</strong> {pendingApp.business_category}</p>
+                        <p><strong className="text-foreground/80">Products:</strong> {pendingApp.products_description}</p>
                       </div>
-                      <p className="mt-4 text-xs text-amber-700/80 italic">
-                        {t("apply_pending_note")}
-                      </p>
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* Rejected Application Banner */}
-              {latestApp?.status === "rejected" && !pendingApp && !approvedApp && !showFormOverride && (
-                <div className="rounded-3xl border border-red-200 bg-red-50 p-8 mb-8 shadow-lg">
-                  <div className="flex items-start gap-4">
-                    <div className="p-3 rounded-2xl bg-red-500/20 text-red-400">
-                      <XCircle className="w-8 h-8" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="inline-block px-3 py-1 rounded-full bg-red-500/20 text-red-400 text-xs font-bold uppercase tracking-wider mb-2">
-                        {t("apply_rejected_badge")}
-                      </div>
-                      <h2 className="text-2xl font-bold text-brand-deep">
-                        {t("apply_rejected_for")} {latestApp.store_name}
-                      </h2>
-                      <p className="text-foreground/70 mt-2 text-sm">
-                        {t("apply_rejected_reason")} {latestApp.admin_notes || t("apply_rejected_default_reason")}
-                      </p>
-                      <button
-                        onClick={() => setShowFormOverride(true)}
-                        className="mt-4 px-6 py-2.5 rounded-xl bg-surface-soft hover:bg-border text-foreground font-bold text-sm transition-colors"
-                      >
-                        {t("apply_submit_new")}
-                      </button>
-                    </div>
-                  </div>
+              {/* Messages */}
+              {errorMsg && (
+                <div className="mb-6 p-4 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-sm font-semibold">
+                  {errorMsg}
+                </div>
+              )}
+
+              {successMsg && (
+                <div className="mb-6 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-semibold">
+                  {successMsg}
                 </div>
               )}
 
               {/* Application Form */}
-              {(!pendingApp && !approvedApp) || showFormOverride ? (
+              {(!pendingApp || showFormOverride) && (!approvedApp || showFormOverride) && (
                 <form
                   onSubmit={handleSubmit}
-                  className="rounded-3xl border border-border bg-white p-6 md:p-10 shadow-xl space-y-6"
+                  className="rounded-3xl border border-border bg-white p-6 sm:p-10 shadow-xl space-y-6"
                 >
                   <div className="border-b border-border pb-4">
-                    <h2 className="text-xl font-bold text-brand-deep flex items-center gap-2">
-                      <Building2 className="w-5 h-5 text-brand" />
-                      {t("apply_form_title")}
-                    </h2>
-                    <p className="text-foreground/60 text-xs mt-1">
-                      {t("apply_form_desc")}
+                    <h2 className="text-xl font-bold text-brand-deep">Store Information</h2>
+                    <p className="text-xs text-foreground/60 mt-1">
+                      Tell us about the store you want to create on Bushbuyer.
                     </p>
                   </div>
 
-                  {errorMsg && (
-                    <div className="p-4 rounded-2xl bg-red-50 border border-red-200 text-red-600 text-sm font-medium">
-                      {errorMsg}
-                    </div>
-                  )}
-
-                  {successMsg && (
-                    <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-600 text-sm font-medium">
-                      {successMsg}
-                    </div>
-                  )}
-
-                  <div>
-                    <label className="block text-xs font-bold text-foreground/70 uppercase tracking-wider mb-2">
-                      {t("apply_store_name_label")}
-                    </label>
-                    <div className="relative">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    {/* Store Name */}
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-foreground/70 mb-2">
+                        Store Name *
+                      </label>
                       <input
                         type="text"
                         required
-                        placeholder={t("apply_store_name_placeholder")}
                         value={storeName}
                         onChange={(e) => setStoreName(e.target.value)}
-                        className="w-full rounded-2xl border border-border bg-surface px-4 py-3.5 text-sm text-foreground placeholder-foreground/30 focus:border-brand focus:outline-none transition-colors"
+                        placeholder="e.g. Douala Tech & Electronics"
+                        className="w-full rounded-2xl border border-border bg-surface px-4 py-3 text-sm text-foreground outline-none focus:border-emerald-600 focus:bg-white transition-all"
                       />
+                    </div>
+
+                    {/* Business Category */}
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-foreground/70 mb-2">
+                        Primary Store Category *
+                      </label>
+                      <select
+                        value={category}
+                        onChange={(e) => setCategory(e.target.value)}
+                        className="w-full rounded-2xl border border-border bg-surface px-4 py-3 text-sm font-semibold text-foreground outline-none focus:border-emerald-600 focus:bg-white transition-all"
+                      >
+                        {CAMEROON_MARKET_CATEGORIES.map((c) => (
+                          <option key={c.slug} value={c.name}>
+                            {c.icon} {c.name}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   </div>
 
+                  {/* Products Description */}
                   <div>
-                    <label className="block text-xs font-bold text-foreground/70 uppercase tracking-wider mb-2">
-                      {t("apply_category_label")}
-                    </label>
-                    <select
-                      value={category}
-                      onChange={(e) => setCategory(e.target.value)}
-                      className="w-full rounded-2xl border border-border bg-surface px-4 py-3.5 text-sm text-foreground focus:border-brand focus:outline-none transition-colors"
-                    >
-                      <option value="Raw Foods & Produce">Raw Foods & Produce</option>
-                      <option value="Spices & Seasonings">Spices & Seasonings</option>
-                      <option value="Groceries & Snacks">Groceries & Snacks</option>
-                      <option value="Fashion & Apparel">Fashion & Apparel</option>
-                      <option value="Electronics & Tech">Electronics & Tech</option>
-                      <option value="Beauty & Personal Care">Beauty & Personal Care</option>
-                      <option value="General">General Marketplace</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-foreground/70 uppercase tracking-wider mb-2">
-                      {t("apply_products_label")}
+                    <label className="block text-xs font-bold uppercase tracking-wider text-foreground/70 mb-2">
+                      Products Description & Brands Sold *
                     </label>
                     <textarea
+                      rows={3}
                       required
-                      rows={4}
-                      placeholder={t("apply_products_placeholder")}
                       value={productsDesc}
                       onChange={(e) => setProductsDesc(e.target.value)}
-                      className="w-full rounded-2xl border border-border bg-surface px-4 py-3.5 text-sm text-foreground placeholder-foreground/30 focus:border-brand focus:outline-none transition-colors"
+                      placeholder="Describe what items you sell (e.g. Laptops, TVs, smartphones, accessories) and your product sourcing..."
+                      className="w-full rounded-2xl border border-border bg-surface px-4 py-3 text-sm text-foreground outline-none focus:border-emerald-600 focus:bg-white transition-all resize-none"
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    {/* Phone */}
                     <div>
-                      <label className="block text-xs font-bold text-foreground/70 uppercase tracking-wider mb-2 flex items-center gap-1">
-                        <Phone className="w-3.5 h-3.5 text-foreground/40" />
-                        {t("apply_phone_label")}
+                      <label className="block text-xs font-bold uppercase tracking-wider text-foreground/70 mb-2">
+                        WhatsApp / Contact Phone *
                       </label>
                       <input
-                        type="text"
-                        placeholder={t("apply_phone_placeholder")}
+                        type="tel"
+                        required
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
-                        className="w-full rounded-2xl border border-border bg-surface px-4 py-3 text-sm text-foreground placeholder-foreground/30 focus:border-brand focus:outline-none transition-colors"
+                        placeholder="+237 6..."
+                        className="w-full rounded-2xl border border-border bg-surface px-4 py-3 text-sm text-foreground outline-none focus:border-emerald-600 focus:bg-white transition-all"
                       />
                     </div>
 
+                    {/* Email */}
                     <div>
-                      <label className="block text-xs font-bold text-foreground/70 uppercase tracking-wider mb-2 flex items-center gap-1">
-                        <Mail className="w-3.5 h-3.5 text-foreground/40" />
-                        {t("apply_email_label")}
+                      <label className="block text-xs font-bold uppercase tracking-wider text-foreground/70 mb-2">
+                        Business Email Address
                       </label>
                       <input
                         type="email"
-                        placeholder={t("apply_email_placeholder")}
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        className="w-full rounded-2xl border border-border bg-surface px-4 py-3 text-sm text-foreground placeholder-foreground/30 focus:border-brand focus:outline-none transition-colors"
+                        placeholder="store@email.com"
+                        className="w-full rounded-2xl border border-border bg-surface px-4 py-3 text-sm text-foreground outline-none focus:border-emerald-600 focus:bg-white transition-all"
                       />
                     </div>
                   </div>
 
+                  {/* Additional Notes */}
                   <div>
-                    <label className="block text-xs font-bold text-foreground/70 uppercase tracking-wider mb-2 flex items-center gap-1">
-                      <FileText className="w-3.5 h-3.5 text-foreground/40" />
-                      {t("apply_notes_label")}
+                    <label className="block text-xs font-bold uppercase tracking-wider text-foreground/70 mb-2">
+                      Physical Store Location / Additional Notes
                     </label>
                     <textarea
                       rows={2}
-                      placeholder={t("apply_notes_placeholder")}
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
-                      className="w-full rounded-2xl border border-border bg-surface px-4 py-3 text-sm text-foreground placeholder-foreground/30 focus:border-brand focus:outline-none transition-colors"
+                      placeholder="e.g. Physical shop located in Akwa Douala, Boulevard de la Liberté..."
+                      className="w-full rounded-2xl border border-border bg-surface px-4 py-3 text-sm text-foreground outline-none focus:border-emerald-600 focus:bg-white transition-all resize-none"
                     />
                   </div>
 
-                  <div className="pt-4 flex items-center justify-end gap-3">
-                    {showFormOverride && (
-                      <button
-                        type="button"
-                        onClick={() => setShowFormOverride(false)}
-                        className="px-6 py-3 rounded-full border border-border bg-surface text-foreground/70 text-sm font-semibold hover:bg-surface-soft transition-colors"
-                      >
-                        {t("apply_cancel")}
-                      </button>
-                    )}
-                    <button
-                      type="submit"
-                      disabled={submitting}
-                      className="px-8 py-3.5 rounded-full bg-gradient-to-r from-brand to-brand-deep text-white font-bold text-sm hover:shadow-lg hover:shadow-brand/30 disabled:opacity-50 transition-all active:scale-95"
-                    >
-                      {submitting ? t("apply_submitting") : t("apply_submit")}
-                    </button>
+                  {/* 5,000 CFA Fee Notice in Form */}
+                  <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-between text-xs text-emerald-900 font-semibold">
+                    <span>One-time store registration fee:</span>
+                    <span className="font-extrabold text-sm text-emerald-800">5,000 CFA</span>
                   </div>
+
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-base py-4 shadow-lg shadow-emerald-700/20 transition-all active:scale-95 disabled:opacity-50"
+                  >
+                    {submitting ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin text-white" />
+                        Submitting Application...
+                      </>
+                    ) : (
+                      <>
+                        Submit Store Application (5,000 CFA)
+                        <ArrowRight className="w-5 h-5" />
+                      </>
+                    )}
+                  </button>
                 </form>
-              ) : null}
+              )}
             </>
           )}
         </div>
@@ -424,4 +521,3 @@ export default function ApplyStorePage() {
     </div>
   );
 }
-

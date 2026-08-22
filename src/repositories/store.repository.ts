@@ -25,8 +25,8 @@ export class StoreRepository {
   static async createStore(data: Partial<Store>): Promise<Store> {
     const res = await query<{ insertId: number }>(
       `INSERT INTO stores (
-        name, slug, logo, banner, description, business_category, email, phone, whatsapp, address, country, city, gps_coordinates, website, facebook, instagram, tiktok, youtube, linkedin, twitter
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        name, slug, logo, banner, description, business_category, email, phone, whatsapp, address, country, city, quarter, landmark, latitude, longitude, gps_coordinates, website, facebook, instagram, tiktok, youtube, linkedin, twitter
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         data.name,
         data.slug,
@@ -38,9 +38,13 @@ export class StoreRepository {
         data.phone || null,
         data.whatsapp || null,
         data.address || null,
-        data.country || null,
+        data.country || "Cameroon",
         data.city || null,
-        data.gps_coordinates || null,
+        data.quarter || null,
+        data.landmark || null,
+        data.latitude ?? null,
+        data.longitude ?? null,
+        data.gps_coordinates || (data.latitude && data.longitude ? `${data.latitude}, ${data.longitude}` : null),
         data.website || null,
         data.facebook || null,
         data.instagram || null,
@@ -72,6 +76,10 @@ export class StoreRepository {
         address = COALESCE(?, address),
         country = COALESCE(?, country),
         city = COALESCE(?, city),
+        quarter = COALESCE(?, quarter),
+        landmark = COALESCE(?, landmark),
+        latitude = COALESCE(?, latitude),
+        longitude = COALESCE(?, longitude),
         gps_coordinates = COALESCE(?, gps_coordinates),
         website = COALESCE(?, website),
         facebook = COALESCE(?, facebook),
@@ -95,7 +103,11 @@ export class StoreRepository {
         data.address || null,
         data.country || null,
         data.city || null,
-        data.gps_coordinates || null,
+        data.quarter || null,
+        data.landmark || null,
+        data.latitude !== undefined ? data.latitude : null,
+        data.longitude !== undefined ? data.longitude : null,
+        data.gps_coordinates || (data.latitude && data.longitude ? `${data.latitude}, ${data.longitude}` : null),
         data.website || null,
         data.facebook || null,
         data.instagram || null,

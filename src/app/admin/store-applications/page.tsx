@@ -33,6 +33,10 @@ interface StoreApplicationItem {
   additional_notes: string | null;
   status: "pending" | "approved" | "rejected";
   admin_notes: string | null;
+  application_fee_cfa?: number;
+  payment_status?: "pending" | "paid" | "failed";
+  payment_reference?: string | null;
+  paid_at?: string | null;
   created_at: string;
   existing_store_count: number;
 }
@@ -326,6 +330,17 @@ export default function AdminStoreApplicationsPage() {
                         {app.status === "rejected" && <XCircle className="w-3.5 h-3.5" />}
                         {app.status}
                       </span>
+
+                      {app.payment_status === "paid" ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                          <CheckCircle className="w-3 h-3" /> 5,000 CFA Paid
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                          <Clock className="w-3 h-3" /> Fee Pending (5,000 CFA)
+                        </span>
+                      )}
+
                       <span className="text-xs text-slate-500 font-mono">App #{app.id}</span>
                       <span className="text-xs text-slate-400 flex items-center gap-1">
                         <Calendar className="w-3.5 h-3.5 text-slate-500" />

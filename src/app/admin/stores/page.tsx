@@ -31,6 +31,9 @@ interface StoreRow {
   email: string | null;
   phone: string | null;
   city: string | null;
+  quarter?: string | null;
+  landmark?: string | null;
+  gps_coordinates?: string | null;
   country: string | null;
   verification_status: "unverified" | "pending" | "verified" | "rejected";
   store_status: "active" | "inactive" | "suspended";
@@ -75,8 +78,11 @@ function CreateStoreModal({ onClose, onCreated }: { onClose: () => void; onCreat
     business_category: "General",
     email: "",
     phone: "",
-    city: "",
-    country: "",
+    city: "Douala",
+    quarter: "Akwa",
+    landmark: "",
+    gps_coordinates: "",
+    country: "Cameroon",
     description: "",
   });
   const [saving, setSaving] = useState(false);
@@ -205,6 +211,39 @@ function CreateStoreModal({ onClose, onCreated }: { onClose: () => void; onCreat
                 onChange={(e) => handleChange("city", e.target.value)}
                 className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-emerald-600 focus:bg-white focus:outline-none"
                 placeholder="Douala"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+                Quarter / Neighborhood
+              </label>
+              <input
+                value={form.quarter}
+                onChange={(e) => handleChange("quarter", e.target.value)}
+                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-emerald-600 focus:bg-white focus:outline-none"
+                placeholder="e.g. Akwa, Bastos, Molyko"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+                Landmark / Street Reference
+              </label>
+              <input
+                value={form.landmark}
+                onChange={(e) => handleChange("landmark", e.target.value)}
+                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-emerald-600 focus:bg-white focus:outline-none"
+                placeholder="Opposite TotalEnergies, Near Market"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+                GPS Coordinates (lat, lng)
+              </label>
+              <input
+                value={form.gps_coordinates}
+                onChange={(e) => handleChange("gps_coordinates", e.target.value)}
+                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-emerald-600 focus:bg-white focus:outline-none font-mono"
+                placeholder="4.0511, 9.7042"
               />
             </div>
             <div className="col-span-2">

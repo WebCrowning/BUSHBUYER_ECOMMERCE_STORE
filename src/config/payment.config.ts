@@ -13,6 +13,6 @@ export const paymentConfig = {
     webhookSecret: process.env.FAPSHI_WEBHOOK_SECRET ?? "",
   },
   commissions: {
-    defaultRatePercentage: Number(process.env.DEFAULT_COMMISSION_RATE ?? 5.0),
+    defaultRatePercentage: Number(process.env.DEFAULT_COMMISSION_RATE ?? 10.0),
   },
 };

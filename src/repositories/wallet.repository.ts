@@ -39,7 +39,7 @@ export class WalletRepository {
     const globalComm = await query<Commission[]>(
       "SELECT rate_percentage FROM commissions WHERE level = 'global' AND is_active = 1 LIMIT 1"
     );
-    return globalComm[0] ? Number(globalComm[0].rate_percentage) : 5.0;
+    return globalComm[0] ? Number(globalComm[0].rate_percentage) : 10.0;
   }
 
   static async creditStoreSale(

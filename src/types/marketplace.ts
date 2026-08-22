@@ -64,6 +64,10 @@ export interface Store {
   address?: string | null;
   country?: string | null;
   city?: string | null;
+  quarter?: string | null;
+  landmark?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   gps_coordinates?: string | null;
   business_hours_json?: string | null;
   website?: string | null;
