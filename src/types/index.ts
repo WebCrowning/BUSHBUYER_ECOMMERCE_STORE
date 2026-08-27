@@ -4,6 +4,7 @@ export type Product = {
   id: number;
   storeId?: number;
   storeName?: string;
+  storeSlug?: string;
   name: string;
   price: number;
   discountPrice?: number | null;
@@ -17,6 +18,10 @@ export type Product = {
   unitType: "pcs" | "kg";
   unitValue: number;
   stockPackages: number;
+  status?: "active" | "draft" | "archived" | "blocked" | string;
+  marketplace_enabled?: number;
+  admin_blocked?: number;
+  admin_block_reason?: string | null;
 };
 
 export type CartItem = {

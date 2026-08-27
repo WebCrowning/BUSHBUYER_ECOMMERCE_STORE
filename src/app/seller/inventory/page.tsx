@@ -7,6 +7,8 @@ import { SiteFooter } from "@/components/site-footer";
 import SellerNavbar from "@/components/seller-navbar";
 import SellerInventoryClient from "./seller-inventory-client";
 
+import { canAccessSellerRoute } from "@/lib/store-permissions";
+
 export default async function SellerInventoryPage({
   searchParams,
 }: {
@@ -31,7 +33,20 @@ export default async function SellerInventoryPage({
     return <div className="p-8 text-center text-foreground/70">No store found. Please contact Super Admin.</div>;
   }
 
-  const productRows = await ProductRepository.listProducts({ store_id: primaryStore.id, limit: 200 });
+  const globalRole = (session.user as { role?: string })?.role;
+  const storeRole =
+    (await StoreRepository.getUserStoreRole(userId, primaryStore.id)) ||
+    (globalRole === "admin" || globalRole === "super_admin" ? "store_owner" : "sales_staff");
+
+  if (!canAccessSellerRoute(storeRole, "/seller/inventory")) {
+    redirect(`/seller/dashboard?storeId=${primaryStore.id}&access=denied&required=manage_inventory`);
+  }
+
+  const productRows = await ProductRepository.listProducts({
+    store_id: primaryStore.id,
+    include_blocked: true,
+    limit: 200,
+  });
   const products = productRows.map(ProductRepository.mapToProduct);
 
   return (
@@ -41,7 +56,7 @@ export default async function SellerInventoryPage({
       <main className="container-shell py-8 flex-1">
         <div className="grid gap-8 lg:grid-cols-[280px_1fr] lg:items-start">
           <aside>
-            <SellerNavbar storeId={primaryStore.id} storeSlug={primaryStore.slug} stores={stores} />
+            <SellerNavbar storeId={primaryStore.id} storeSlug={primaryStore.slug} stores={stores} storeRole={storeRole} />
           </aside>
 
           <SellerInventoryClient

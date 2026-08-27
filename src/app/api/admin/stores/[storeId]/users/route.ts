@@ -166,6 +166,21 @@ export async function DELETE(
     if (!userIdStr) return NextResponse.json({ error: "User ID parameter required" }, { status: 400 });
 
     const userId = parseInt(userIdStr, 10);
+    if (isNaN(userId)) return NextResponse.json({ error: "Invalid user ID" }, { status: 400 });
+
+    // Protect store_owner from being removed by staff
+    const storeUsers = await StoreRepository.getStoreUsers(id);
+    const target = storeUsers.find((su) => su.user_id === userId);
+    if (
+      target?.store_role === "store_owner" &&
+      role !== "admin" &&
+      role !== "sub_admin" &&
+      role !== "super_admin" &&
+      role !== "platform_admin"
+    ) {
+      return NextResponse.json({ error: "Store owners can only be managed by platform admins" }, { status: 403 });
+    }
+
     await StoreRepository.removeUserFromStore(id, userId);
 
     const staff = await StoreRepository.getStoreUsers(id);

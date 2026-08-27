@@ -45,6 +45,11 @@ export default function AdminProductsPage() {
   const formSectionRef = useRef<HTMLElement | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [categoryOptions, setCategoryOptions] = useState<string[]>(["General"]);
+  const [stores, setStores] = useState<Array<{ id: number; name: string; slug: string }>>([]);
+  const [selectedStoreFilter, setSelectedStoreFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "blocked" | "low_stock">("all");
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [togglingBlockId, setTogglingBlockId] = useState<number | null>(null);
   const [form, setForm] = useState<ProductForm>(defaultForm);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [status, setStatus] = useState<string>("");
@@ -59,8 +64,22 @@ export default function AdminProductsPage() {
   const [deletingCategory, setDeletingCategory] = useState(false);
   const zoomSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  async function loadProducts() {
-    const response = await fetch("/api/admin/products?store_id=0");
+  async function loadStores() {
+    try {
+      const res = await fetch("/api/admin/stores?limit=50");
+      if (res.ok) {
+        const data = await res.json();
+        setStores(data.stores ?? []);
+      }
+    } catch {
+      // non-fatal
+    }
+  }
+
+  async function loadProducts(storeIdParam?: string) {
+    const target = storeIdParam ?? selectedStoreFilter;
+    const url = target === "all" ? "/api/admin/products?store_id=all" : `/api/admin/products?store_id=${target}`;
+    const response = await fetch(url);
     const payload = (await response.json()) as { products: Product[]; categories?: string[] };
     setProducts(payload.products ?? []);
 
@@ -97,6 +116,32 @@ export default function AdminProductsPage() {
     } catch { /* non-fatal */ }
   }
 
+  async function handleToggleBlock(productId: number, isCurrentlyBlocked: boolean) {
+    setTogglingBlockId(productId);
+    try {
+      const res = await fetch(`/api/admin/products/${productId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: isCurrentlyBlocked ? "unblock" : "block",
+          reason: isCurrentlyBlocked ? null : "Blocked by administrator for moderation review",
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error ?? "Failed to change product status");
+      }
+
+      setStatus(isCurrentlyBlocked ? "✓ Product unblocked successfully." : "⚠️ Product blocked by Admin. It will not show on the public marketplace.");
+      await loadProducts();
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : "Failed to toggle product status.");
+    } finally {
+      setTogglingBlockId(null);
+    }
+  }
+
   async function loadUploadedImages() {
     const response = await fetch("/api/admin/upload?type=product");
     const payload = (await response.json().catch(() => null)) as
@@ -113,6 +158,7 @@ export default function AdminProductsPage() {
 
   useEffect(() => {
     const timeout = setTimeout(() => {
+      void loadStores();
       void loadProducts();
       void loadUploadedImages();
     }, 0);
@@ -719,78 +765,252 @@ export default function AdminProductsPage() {
       </section>
 
       <section className="glass-card rounded-2xl p-5">
-        <h2 className="text-xl font-bold text-brand-deep">Manage Products</h2>
-        {lowStockProducts.length > 0 ? (
-          <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            <p className="font-semibold">Low stock warning</p>
-            <p className="mt-1">
-              {lowStockProducts.length} product(s) are running low (at or below {LOW_STOCK_THRESHOLD} packages).
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-border">
+          <div>
+            <h2 className="text-xl font-bold text-brand-deep">Manage & Moderate Products</h2>
+            <p className="text-xs text-foreground/60 mt-0.5">
+              Filter by store or status, update inventory, or block/unblock products across the marketplace.
             </p>
           </div>
+
+          {/* Store Selector */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-foreground/60 shrink-0">Store:</span>
+            <select
+              value={selectedStoreFilter}
+              onChange={(e) => {
+                const val = e.target.value;
+                setSelectedStoreFilter(val);
+                void loadProducts(val);
+              }}
+              className="rounded-xl border border-border bg-white px-3 py-1.5 text-xs font-bold text-brand-deep shadow-sm outline-none"
+            >
+              <option value="all">🏬 All Stores (Platform-Wide)</option>
+              <option value="0">⭐ Bushbuyer Flagship (Store #0)</option>
+              {stores.map((s) => (
+                <option key={s.id} value={String(s.id)}>
+                  🏪 {s.name} (Store #{s.id})
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Filters and Search Bar */}
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setStatusFilter("all")}
+              className={`rounded-full px-3 py-1 text-xs font-bold transition-all ${
+                statusFilter === "all"
+                  ? "bg-brand text-white shadow-sm"
+                  : "bg-surface text-foreground/70 hover:bg-surface-soft border border-border"
+              }`}
+            >
+              All ({products.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatusFilter("active")}
+              className={`rounded-full px-3 py-1 text-xs font-bold transition-all ${
+                statusFilter === "active"
+                  ? "bg-emerald-600 text-white shadow-sm"
+                  : "bg-surface text-foreground/70 hover:bg-surface-soft border border-border"
+              }`}
+            >
+              Active ({products.filter((p) => p.status !== "blocked" && (p as any).admin_blocked !== 1).length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatusFilter("blocked")}
+              className={`rounded-full px-3 py-1 text-xs font-bold transition-all ${
+                statusFilter === "blocked"
+                  ? "bg-red-600 text-white shadow-sm"
+                  : "bg-red-50 text-red-700 hover:bg-red-100 border border-red-200"
+              }`}
+            >
+              ⚠️ Blocked by Admin ({products.filter((p) => p.status === "blocked" || (p as any).admin_blocked === 1).length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatusFilter("low_stock")}
+              className={`rounded-full px-3 py-1 text-xs font-bold transition-all ${
+                statusFilter === "low_stock"
+                  ? "bg-amber-600 text-white shadow-sm"
+                  : "bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200"
+              }`}
+            >
+              Low Stock ({lowStockProducts.length})
+            </button>
+          </div>
+
+          <div className="w-full sm:w-64">
+            <input
+              type="search"
+              placeholder="Filter by product name..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full rounded-xl border border-border bg-white px-3 py-1.5 text-xs outline-none"
+            />
+          </div>
+        </div>
+
+        {lowStockProducts.length > 0 && statusFilter === "all" ? (
+          <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-xs text-red-700">
+            <span className="font-bold">Low stock warning:</span> {lowStockProducts.length} product(s) have stock at or below {LOW_STOCK_THRESHOLD} packages.
+          </div>
         ) : null}
+
+        {/* Product Cards List */}
         <div className="mt-4 space-y-3">
-          {products.map((product) => (
-            <article key={product.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-white p-3">
-              <div className="flex min-w-44 flex-1 items-start gap-3">
-                <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-border bg-surface/70">
-                  {product.image ? (
-                    <img
-                      src={product.image}
-                      alt={`${product.name} preview`}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center px-2 text-center text-[10px] font-semibold uppercase tracking-wide text-foreground/55">
-                      No image
+          {(() => {
+            const q = searchQuery.toLowerCase().trim();
+            const displayed = products.filter((p) => {
+              const matchesSearch = !q || p.name.toLowerCase().includes(q) || (p.category || "").toLowerCase().includes(q);
+              const isBlocked = p.status === "blocked" || (p as any).admin_blocked === 1;
+              const matchesStatus =
+                statusFilter === "all" ||
+                (statusFilter === "active" && !isBlocked) ||
+                (statusFilter === "blocked" && isBlocked) ||
+                (statusFilter === "low_stock" && Number(p.stockPackages) <= LOW_STOCK_THRESHOLD);
+              return matchesSearch && matchesStatus;
+            });
+
+            if (displayed.length === 0) {
+              return (
+                <div className="rounded-xl border border-dashed border-border p-8 text-center text-xs text-foreground/50">
+                  No products match the selected filters.
+                </div>
+              );
+            }
+
+            return displayed.map((product) => {
+              const isBlocked = product.status === "blocked" || (product as any).admin_blocked === 1;
+              const isToggling = togglingBlockId === product.id;
+
+              return (
+                <article
+                  key={product.id}
+                  className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3 transition-all ${
+                    isBlocked
+                      ? "border-red-300 bg-red-50/40"
+                      : "border-border bg-white"
+                  }`}
+                >
+                  <div className="flex min-w-44 flex-1 items-start gap-3">
+                    <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-border bg-surface/70">
+                      {product.image ? (
+                        <img
+                          src={product.image}
+                          alt={`${product.name} preview`}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center px-2 text-center text-[10px] font-semibold uppercase tracking-wide text-foreground/55">
+                          No image
+                        </div>
+                      )}
+                      {isBlocked && (
+                        <div className="absolute inset-0 bg-red-900/60 flex items-center justify-center text-white text-[9px] font-black uppercase tracking-wider">
+                          Blocked
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-                <div className="flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-semibold">{product.name}</p>
-                    {Number(product.stockPackages) <= LOW_STOCK_THRESHOLD ? (
-                      <span className="rounded-full border border-red-300 bg-red-100 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-red-700">
-                        Low stock
-                      </span>
-                    ) : null}
+
+                    <div className="flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-bold text-brand-deep">{product.name}</p>
+
+                        {/* Status Badges */}
+                        {isBlocked ? (
+                          <span className="rounded-full border border-red-300 bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700">
+                            🚫 Blocked by Admin
+                          </span>
+                        ) : (
+                          <span className="rounded-full border border-emerald-300 bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
+                            ✓ Active
+                          </span>
+                        )}
+
+                        {/* Store Tag */}
+                        {product.storeName && (
+                          <span className="rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-700">
+                            🏪 {product.storeName}
+                          </span>
+                        )}
+
+                        {Number(product.stockPackages) <= LOW_STOCK_THRESHOLD && !isBlocked ? (
+                          <span className="rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700">
+                            Low stock
+                          </span>
+                        ) : null}
+                      </div>
+
+                      <p className="text-xs text-foreground/60 mt-1">
+                        Category: <span className="font-semibold text-foreground/80">{product.category}</span> | Price: ${Number(product.price).toFixed(2)} ({formatCurrency(Math.round(Number(product.price) * USD_TO_XAF), "XAF")} CFA) per {product.packageName} ({Number(product.unitValue)} {product.unitType}) | Stock: {Number(product.stockPackages)} packages | ID: #{product.id}
+                      </p>
+
+                      {isBlocked && (
+                        <p className="text-[11px] text-red-600 font-semibold mt-1">
+                          Reason: {(product as any).admin_block_reason || "Product blocked by administrator. Seller sees: 'Product blocked. Contact admin.'"}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-xs text-foreground/60">Price: ${Number(product.price).toFixed(2)} ({formatCurrency(Math.round(Number(product.price) * USD_TO_XAF), "XAF")} CFA) per {product.packageName} ({Number(product.unitValue)} {product.unitType}) | Transport: ${Number(product.transportFee ?? 0).toFixed(2)} ({formatCurrency(Math.round(Number(product.transportFee ?? 0) * USD_TO_XAF), "XAF")} CFA) | Stock: {Number(product.stockPackages)} packages | Zoom: {Math.max(80, Math.min(180, Number(product.imageZoom ?? 100)))}%</p>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  className="rounded-full border border-border px-4 py-1 text-xs font-semibold"
-                  onClick={() => {
-                    setEditingId(product.id);
-                    setForm({
-                      name: product.name,
-                      price: String(product.price),
-                      transportFee: String(product.transportFee ?? 0),
-                      image: product.image,
-                      imageZoom: String(product.imageZoom ?? 100),
-                      description: product.description,
-                      featured: product.featured ? "1" : "0",
-                      category: product.category,
-                      packageName: product.packageName,
-                      unitType: product.unitType,
-                      unitValue: String(product.unitValue),
-                      stockPackages: String(product.stockPackages),
-                    });
-                  }}
-                >
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  className="rounded-full border border-red-200 px-4 py-1 text-xs font-semibold text-red-600"
-                  onClick={() => setDeleteTarget({ id: product.id, name: product.name })}
-                >
-                  Delete
-                </button>
-              </div>
-            </article>
-          ))}
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* Block / Unblock Moderation Button */}
+                    <button
+                      type="button"
+                      disabled={isToggling}
+                      onClick={() => void handleToggleBlock(product.id, isBlocked)}
+                      className={`rounded-full px-3.5 py-1 text-xs font-bold transition-all shadow-sm disabled:opacity-50 ${
+                        isBlocked
+                          ? "border border-emerald-300 bg-emerald-600 hover:bg-emerald-700 text-white"
+                          : "border border-red-300 bg-red-50 hover:bg-red-100 text-red-700"
+                      }`}
+                      title={isBlocked ? "Unblock and show on marketplace" : "Block product from showing on public marketplace"}
+                    >
+                      {isToggling ? "Updating..." : isBlocked ? "✓ Unblock Product" : "🚫 Block Product"}
+                    </button>
+
+                    <button
+                      type="button"
+                      className="rounded-full border border-border px-3 py-1 text-xs font-semibold hover:bg-surface"
+                      onClick={() => {
+                        setEditingId(product.id);
+                        setForm({
+                          name: product.name,
+                          price: String(product.price),
+                          transportFee: String(product.transportFee ?? 0),
+                          image: product.image,
+                          imageZoom: String(product.imageZoom ?? 100),
+                          description: product.description,
+                          featured: product.featured ? "1" : "0",
+                          category: product.category,
+                          packageName: product.packageName,
+                          unitType: product.unitType,
+                          unitValue: String(product.unitValue),
+                          stockPackages: String(product.stockPackages),
+                        });
+                      }}
+                    >
+                      Edit
+                    </button>
+
+                    <button
+                      type="button"
+                      className="rounded-full border border-red-200 px-3 py-1 text-xs font-semibold text-red-600 hover:bg-red-50"
+                      onClick={() => setDeleteTarget({ id: product.id, name: product.name })}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </article>
+              );
+            });
+          })()}
         </div>
       </section>
 

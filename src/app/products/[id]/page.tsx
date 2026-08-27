@@ -11,6 +11,8 @@ import type { Product } from "@/types";
 import { ShareModal } from "@/components/share-modal";
 import { StoreAttributor } from "@/components/store-attributor";
 import { ProductPriceDisplay } from "@/components/product-price-display";
+import { StoreLocationCard } from "@/components/store/store-location-card";
+import { StoreRepository } from "@/repositories/store.repository";
 
 export const dynamic = "force-dynamic";
 
@@ -26,19 +28,22 @@ export default async function ProductDetailsPage({ params }: Props) {
     notFound();
   }
 
-  const rows = await query<(Product & { store_id?: number })[]>(
-    "SELECT id, name, price, transport_fee AS transportFee, image, image_zoom AS imageZoom, description, featured, category, package_name AS packageName, unit_type AS unitType, unit_value AS unitValue, stock_packages AS stockPackages, store_id FROM products WHERE id = ? LIMIT 1",
+  const rows = await query<(Product & { store_id?: number; status?: string; admin_blocked?: number })[]>(
+    "SELECT id, name, price, transport_fee AS transportFee, image, image_zoom AS imageZoom, description, featured, category, package_name AS packageName, unit_type AS unitType, unit_value AS unitValue, stock_packages AS stockPackages, store_id, status, admin_blocked FROM products WHERE id = ? LIMIT 1",
     [productId],
   );
 
   const product = rows[0];
-  if (!product) {
+  if (!product || product.status === "blocked" || product.admin_blocked === 1) {
     notFound();
   }
 
   const zoom = Math.max(80, Math.min(180, Number(product.imageZoom ?? 100)));
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL || "http://localhost:3000";
   const productUrl = `${siteUrl}/products/${product.id}`;
+
+  // Fetch associated store for location display
+  const store = product.store_id ? await StoreRepository.findById(product.store_id) : null;
 
   return (
     <div className="min-h-screen">
@@ -101,6 +106,18 @@ export default async function ProductDetailsPage({ params }: Props) {
             </div>
           </div>
         </div>
+
+        {/* Store Location Section */}
+        {store && (
+          <div className="mt-6">
+            <div className="flex items-center gap-3 mb-3">
+              <span className="flex-1 h-px bg-gray-200" />
+              <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Store Location</span>
+              <span className="flex-1 h-px bg-gray-200" />
+            </div>
+            <StoreLocationCard store={store} variant="compact" />
+          </div>
+        )}
       </main>
       <SiteFooter />
     </div>

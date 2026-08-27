@@ -9,18 +9,21 @@ import { FeaturedProductCard } from "@/components/featured-product-card";
 import { HeroSlideshow } from "@/components/hero-slideshow";
 import type { Product } from "@/types";
 
+import { CategoryMultiStoreCard, CategoryShowcaseData } from "@/components/category-multi-store-card";
+
 type FeaturedProduct = Pick<
   Product,
   "id" | "name" | "price" | "image" | "description" | "category"
-> & { shortNote: string; swapImage: string | null };
+> & { shortNote: string; swapImage: string | null; storeId?: number; storeName?: string; storeSlug?: string };
 
 interface HomeClientProps {
   cards: FeaturedProduct[];
   heroSlides: string[];
   uploadedImages: string[];
+  categoryShowcases?: CategoryShowcaseData[];
 }
 
-export function HomeClient({ cards, heroSlides, uploadedImages }: HomeClientProps) {
+export function HomeClient({ cards, heroSlides, uploadedImages, categoryShowcases = [] }: HomeClientProps) {
   const { t } = useTranslation();
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -37,13 +40,13 @@ export function HomeClient({ cards, heroSlides, uploadedImages }: HomeClientProp
     }
   }, [status, session, router]);
 
-  const categories = [
-    { name: "Seafood", emoji: "🦞", color: "from-blue-500/20 to-cyan-500/20" },
-    { name: "Electronics", emoji: "💻", color: "from-violet-500/20 to-purple-500/20" },
-    { name: "Fashion & Apparel", emoji: "👗", color: "from-pink-500/20 to-rose-500/20" },
-    { name: "Health & Beauty", emoji: "💊", color: "from-emerald-500/20 to-teal-500/20" },
-    { name: "African Raw Foods", emoji: "🌿", color: "from-lime-500/20 to-emerald-500/20" },
-    { name: "Home & Living", emoji: "🏠", color: "from-amber-500/20 to-orange-500/20" },
+  const fallbackCategories = [
+    { name: "Electronics & Computing", emoji: "💻", color: "from-violet-500/20 to-purple-500/20" },
+    { name: "Phones & Gadgets", emoji: "📱", color: "from-indigo-500/20 to-blue-500/20" },
+    { name: "Fashion & Clothing", emoji: "👗", color: "from-pink-500/20 to-rose-500/20" },
+    { name: "Food & Groceries", emoji: "🛒", color: "from-amber-500/20 to-orange-500/20" },
+    { name: "African Raw Foods & Spices", emoji: "🌿", color: "from-lime-500/20 to-emerald-500/20" },
+    { name: "Beauty, Cosmetics & Hair", emoji: "💄", color: "from-emerald-500/20 to-teal-500/20" },
   ];
 
   const testimonials = [
@@ -130,28 +133,51 @@ export function HomeClient({ cards, heroSlides, uploadedImages }: HomeClientProp
         </div>
       </section>
 
-      {/* Categories */}
-      <section className="py-16 md:py-24">
+      {/* Multi-Store Categories Showcase (Products from different stores organized by category) */}
+      <section className="py-16 md:py-24 bg-gradient-to-b from-transparent via-slate-50/50 to-transparent">
         <div className="container-shell">
-          <div className="text-center mb-12">
-            <p className="section-kicker">{t("home_categories_kicker")}</p>
-            <h2 className="section-title mt-2 text-brand-deep">{t("home_categories_title")}</h2>
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-10">
+            <div>
+              <p className="section-kicker">{t("home_categories_kicker")}</p>
+              <h2 className="section-title mt-2 text-brand-deep">
+                Shop by Category &amp; Multi-Vendor Stores
+              </h2>
+              <p className="text-sm text-foreground/70 mt-1 max-w-2xl">
+                Explore products and compare offerings from multiple verified Cameroon stores in every category.
+              </p>
+            </div>
+
+            <Link
+              href="/products"
+              className="inline-flex items-center gap-2 text-sm font-bold text-emerald-700 hover:text-emerald-900 transition-colors"
+            >
+              Browse All Stores &amp; Categories →
+            </Link>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-            {categories.map((cat) => (
-              <Link
-                key={cat.name}
-                href={`/products?category=${encodeURIComponent(cat.name)}`}
-                className={`group relative overflow-hidden rounded-2xl bg-gradient-to-br ${cat.color} border border-border p-8 transition-all hover:shadow-lg hover:scale-105`}
-              >
-                <div className="relative z-10">
-                  <div className="text-5xl mb-4">{cat.emoji}</div>
-                  <h3 className="text-2xl font-bold text-foreground mb-2">{cat.name}</h3>
-                  <p className="text-foreground/70 text-sm">{t("home_browse_collection")}</p>
-                </div>
-              </Link>
-            ))}
-          </div>
+
+          {categoryShowcases.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {categoryShowcases.map((showcase) => (
+                <CategoryMultiStoreCard key={showcase.slug || showcase.name} showcase={showcase} />
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+              {fallbackCategories.map((cat) => (
+                <Link
+                  key={cat.name}
+                  href={`/products?category=${encodeURIComponent(cat.name)}`}
+                  className={`group relative overflow-hidden rounded-2xl bg-gradient-to-br ${cat.color} border border-border p-8 transition-all hover:shadow-lg hover:scale-105`}
+                >
+                  <div className="relative z-10">
+                    <div className="text-5xl mb-4">{cat.emoji}</div>
+                    <h3 className="text-2xl font-bold text-foreground mb-2">{cat.name}</h3>
+                    <p className="text-foreground/70 text-sm">{t("home_browse_collection")}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 

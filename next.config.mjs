@@ -3,12 +3,12 @@ const contentSecurityPolicy = [
   "base-uri 'self'",
   "object-src 'none'",
   "frame-ancestors 'self'",
-  "img-src 'self' data: blob: https:",
+  "img-src 'self' data: blob: https: https://*.tile.openstreetmap.org https://maps.gstatic.com https://maps.googleapis.com",
   "font-src 'self' data: https:",
-  "style-src 'self' 'unsafe-inline'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.paypal.com https://www.sandbox.paypal.com https://www.paypalobjects.com",
-  "connect-src 'self' https://www.paypal.com https://www.sandbox.paypal.com https://api-m.paypal.com https://api-m.sandbox.paypal.com",
-  "frame-src 'self' https://www.paypal.com https://www.sandbox.paypal.com",
+  "style-src 'self' 'unsafe-inline' https://unpkg.com",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.paypal.com https://www.sandbox.paypal.com https://www.paypalobjects.com https://maps.googleapis.com https://maps.google.com",
+  "connect-src 'self' https://www.paypal.com https://www.sandbox.paypal.com https://api-m.paypal.com https://api-m.sandbox.paypal.com https://maps.googleapis.com https://maps.google.com https://nominatim.openstreetmap.org",
+  "frame-src 'self' https://www.paypal.com https://www.sandbox.paypal.com https://www.google.com https://maps.google.com https://maps.googleapis.com https://www.openstreetmap.org",
   "form-action 'self' https://www.paypal.com https://www.sandbox.paypal.com",
 ].join("; ");
 
@@ -98,7 +98,7 @@ const nextConfig = {
           },
           {
             key: "Permissions-Policy",
-            value: "camera=(), microphone=(), geolocation=(), payment=(self)",
+            value: "camera=(), microphone=(), geolocation=(self), payment=(self)",
           },
         ],
       },

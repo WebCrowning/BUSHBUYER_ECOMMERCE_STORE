@@ -89,7 +89,7 @@ export default async function ProductsPage({ searchParams }: PageProps) {
     const counts = await query<Array<{ store_id: number; total: number }>>(
       `SELECT store_id, COUNT(*) AS total
        FROM products
-       WHERE store_id IN (${placeholders}) AND status = 'active'
+       WHERE store_id IN (${placeholders}) AND status = 'active' AND (admin_blocked IS NULL OR admin_blocked = 0)
        GROUP BY store_id`,
       storeIds
     );
@@ -100,7 +100,7 @@ export default async function ProductsPage({ searchParams }: PageProps) {
     const prods = await query<Array<{ id: number; store_id: number; name: string; price: number; image: string; category: string }>>(
       `SELECT id, store_id, name, price, image, category
        FROM products
-       WHERE store_id IN (${placeholders}) AND status = 'active'
+       WHERE store_id IN (${placeholders}) AND status = 'active' AND (admin_blocked IS NULL OR admin_blocked = 0)
        ORDER BY featured DESC, id DESC`,
       storeIds
     );
@@ -140,7 +140,7 @@ export default async function ProductsPage({ searchParams }: PageProps) {
             s.longitude AS storeLongitude, s.gps_coordinates AS storeGps
      FROM products p
      LEFT JOIN stores s ON s.id = p.store_id
-     WHERE p.status = 'active'
+     WHERE p.status = 'active' AND (p.admin_blocked IS NULL OR p.admin_blocked = 0)
      ORDER BY p.featured DESC, p.id DESC
      LIMIT 100`
   );

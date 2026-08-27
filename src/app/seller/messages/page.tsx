@@ -6,6 +6,8 @@ import { SiteFooter } from "@/components/site-footer";
 import SellerNavbar from "@/components/seller-navbar";
 import SellerMessagesClient from "./seller-messages-client";
 
+import { canAccessSellerRoute } from "@/lib/store-permissions";
+
 export default async function SellerMessagesPage({
   searchParams,
 }: {
@@ -30,6 +32,15 @@ export default async function SellerMessagesPage({
     return <div className="p-8 text-center text-foreground/70">No store found. Please contact Super Admin.</div>;
   }
 
+  const globalRole = (session.user as { role?: string })?.role;
+  const storeRole =
+    (await StoreRepository.getUserStoreRole(userId, primaryStore.id)) ||
+    (globalRole === "admin" || globalRole === "super_admin" ? "store_owner" : "sales_staff");
+
+  if (!canAccessSellerRoute(storeRole, "/seller/messages")) {
+    redirect(`/seller/dashboard?storeId=${primaryStore.id}&access=denied&required=view_messages`);
+  }
+
   return (
     <div className="min-h-screen bg-surface-soft text-foreground flex flex-col">
       <SiteHeader />
@@ -37,7 +48,7 @@ export default async function SellerMessagesPage({
       <main className="container-shell py-8 flex-1">
         <div className="grid gap-8 lg:grid-cols-[280px_1fr] lg:items-start">
           <aside>
-            <SellerNavbar storeId={primaryStore.id} storeSlug={primaryStore.slug} stores={stores} />
+            <SellerNavbar storeId={primaryStore.id} storeSlug={primaryStore.slug} stores={stores} storeRole={storeRole} />
           </aside>
 
           <SellerMessagesClient store={primaryStore} />

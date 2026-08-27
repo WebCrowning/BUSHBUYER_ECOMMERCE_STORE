@@ -22,6 +22,9 @@ import {
   Settings,
   Store,
   PlusCircle,
+  Compass,
+  MapPin,
+  Navigation,
 } from "lucide-react";
 
 type UserProfileRow = {
@@ -79,6 +82,13 @@ export function DashboardClientContent({
       helper: t("dashboard_nav_home_helper"),
       icon: LayoutDashboard,
       active: true,
+    },
+    {
+      href: "/dashboard/visited-stores",
+      label: "Visited Stores & GPS Map",
+      helper: "Track locations of shops you visited",
+      icon: Compass,
+      active: false,
     },
     {
       href: "/dashboard/profile",
@@ -288,6 +298,31 @@ export function DashboardClientContent({
               </div>
               <p className="mt-4 text-xs text-foreground/60">{t("dashboard_open_tickets")}</p>
             </article>
+          </div>
+
+          {/* Visited Stores & GPS Map Banner */}
+          <div className="mb-12 rounded-3xl bg-gradient-to-r from-emerald-900 via-teal-900 to-emerald-950 p-6 sm:p-7 text-white shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center shrink-0">
+                <Compass className="w-6 h-6 text-emerald-300" />
+              </div>
+              <div>
+                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-300 uppercase tracking-wider">
+                  <MapPin size={12} /> Google Maps Store Tracker
+                </span>
+                <h3 className="text-lg font-bold text-white mt-0.5">Physical Stores &amp; GPS Directory</h3>
+                <p className="text-xs text-emerald-100/80 mt-1 max-w-xl">
+                  Re-visit stores you&apos;ve browsed, check verified shop locations across Cameroon, and get turn-by-turn Google Maps directions.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/dashboard/visited-stores"
+              className="shrink-0 inline-flex items-center gap-2 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-gray-950 font-extrabold text-xs px-6 py-3.5 shadow-md hover:shadow-lg transition-all active:scale-95"
+            >
+              <Navigation className="w-4 h-4" />
+              View Visited Stores Map
+            </Link>
           </div>
 
           {/* Main Grid */}

@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { StoreSwitcher } from "@/components/store-switcher";
 import { Store as StoreType } from "@/types/marketplace";
+import { canAccessSellerRoute, STORE_ROLE_META } from "@/lib/store-permissions";
 
 type SellerNavItem = {
   href: string;
@@ -38,10 +39,12 @@ export default function SellerNavbar({
   storeId,
   storeSlug,
   stores,
+  storeRole,
 }: {
   storeId?: number;
   storeSlug?: string;
   stores?: StoreType[];
+  storeRole?: string;
 }) {
   const pathname = usePathname();
   const { data: session } = useSession();
@@ -58,7 +61,7 @@ export default function SellerNavbar({
     return baseHref;
   };
 
-  const sellerNavItems: SellerNavItem[] = [
+  const allSellerNavItems: SellerNavItem[] = [
     { href: "/seller/dashboard", label: "Store Overview", icon: LayoutDashboard },
     { href: "/seller/notifications", label: "Notifications", icon: Bell },
     { href: "/seller/location", label: "Store Location & GPS", icon: MapPin },
@@ -73,6 +76,13 @@ export default function SellerNavbar({
     { href: "/seller/traffic", label: "Traffic Analytics", icon: BarChart3 },
     { href: "/seller/faq", label: "Store FAQ", icon: CircleHelp },
   ];
+
+  // Filter navigation items by role authority
+  const sellerNavItems = storeRole
+    ? allSellerNavItems.filter((item) => canAccessSellerRoute(storeRole, item.href))
+    : allSellerNavItems;
+
+  const roleMeta = storeRole ? STORE_ROLE_META[storeRole] : null;
 
   const viewStoreHref = storeSlug ? `/store/${storeSlug}` : null;
 
@@ -208,8 +218,22 @@ export default function SellerNavbar({
       {/* Desktop Sidebar */}
       <aside className="hidden h-fit rounded-2xl border border-slate-700 bg-slate-900 p-4 text-white shadow-sm lg:sticky lg:top-6 lg:block">
         {userStores.length > 0 ? (
-          <div className="mb-4">
+          <div className="mb-4 space-y-2">
             <StoreSwitcher stores={userStores} activeStoreId={activeStoreId} />
+            {roleMeta && (
+              <div className="flex items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Shield size={13} className="text-emerald-400 shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Your Authority</p>
+                    <p className="text-xs font-bold text-slate-100 truncate">{roleMeta.label}</p>
+                  </div>
+                </div>
+                <span className="rounded-md bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-400 shrink-0">
+                  Lvl {roleMeta.authorityLevel}
+                </span>
+              </div>
+            )}
           </div>
         ) : (
           <div className="mb-4 rounded-xl border border-slate-700 bg-gradient-to-br from-slate-800 via-slate-900 to-slate-900 px-3 py-3">
@@ -220,7 +244,7 @@ export default function SellerNavbar({
             </p>
             <p className="inline-flex items-center gap-1.5 text-xs text-slate-400">
               <Sparkles size={12} className="text-slate-500" />
-              Store Owner Control Center
+              {roleMeta ? roleMeta.label : "Store Control Center"}
             </p>
           </div>
         )}

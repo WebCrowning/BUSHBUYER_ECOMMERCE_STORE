@@ -7,6 +7,8 @@ import SellerNavbar from "@/components/seller-navbar";
 import SellerStaffClient from "@/components/seller-staff-client";
 import { Users } from "lucide-react";
 
+import { canAccessSellerRoute, hasStorePermission } from "@/lib/store-permissions";
+
 export const metadata = {
   title: "Staff & Users | Seller Portal",
 };
@@ -25,6 +27,7 @@ export default async function SellerStaffPage({
   }
 
   const userId = Number(session.user.id);
+  const globalRole = (session.user as { role?: string }).role;
   const stores = await StoreRepository.getUserStores(userId);
   const primaryStore =
     (!isNaN(reqStoreId) && stores.find((s) => s.id === reqStoreId)) ||
@@ -49,6 +52,17 @@ export default async function SellerStaffPage({
     );
   }
 
+  const storeRole =
+    (await StoreRepository.getUserStoreRole(userId, primaryStore.id)) ||
+    (globalRole === "admin" || globalRole === "super_admin" ? "store_owner" : "sales_staff");
+
+  if (!canAccessSellerRoute(storeRole, "/seller/staff")) {
+    redirect(`/seller/dashboard?storeId=${primaryStore.id}&access=denied&required=manage_staff`);
+  }
+
+  const isGlobalAdmin = globalRole === "admin" || globalRole === "super_admin";
+  const canAssign = isGlobalAdmin || hasStorePermission(storeRole, "manage_staff");
+
   return (
     <div className="min-h-screen bg-surface-soft text-foreground flex flex-col">
       <SiteHeader />
@@ -56,13 +70,13 @@ export default async function SellerStaffPage({
       <main className="container-shell py-8 flex-1">
         <div className="grid gap-8 lg:grid-cols-[280px_1fr] lg:items-start">
           <aside>
-            <SellerNavbar storeId={primaryStore.id} storeSlug={primaryStore.slug} stores={stores} />
+            <SellerNavbar storeId={primaryStore.id} storeSlug={primaryStore.slug} stores={stores} storeRole={storeRole} />
           </aside>
 
           <SellerStaffClient
             storeId={primaryStore.id}
             storeName={primaryStore.name}
-            canAssign={false}
+            canAssign={canAssign}
           />
         </div>
       </main>

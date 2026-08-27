@@ -63,6 +63,12 @@ export default function AdminStoreUsersPage({
   const [selectedUser, setSelectedUser] = useState<RegisteredUser | null>(null);
   const [showDropdown, setShowDropdown] = useState(false);
 
+  // Pre-loaded email dropdown (most recent users)
+  const [allUsers, setAllUsers] = useState<RegisteredUser[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [dropdownFilter, setDropdownFilter] = useState("");
+  const [showEmailDropdown, setShowEmailDropdown] = useState(false);
+
   const [selectedRole, setSelectedRole] = useState("store_manager");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -86,6 +92,26 @@ export default function AdminStoreUsersPage({
     void fetchStaffAndUsers();
   }, [fetchStaffAndUsers]);
 
+  // Load recent users for dropdown on mount
+  useEffect(() => {
+    async function loadAllUsers() {
+      setLoadingUsers(true);
+      try {
+        const res = await fetch("/api/admin/users?limit=200&page=1");
+        if (res.ok) {
+          const data = await res.json();
+          // already ordered by created_at DESC from the API
+          setAllUsers(data.users ?? []);
+        }
+      } catch {
+        // non-fatal
+      } finally {
+        setLoadingUsers(false);
+      }
+    }
+    void loadAllUsers();
+  }, []);
+
   // Debounced search query fetch
   useEffect(() => {
     if (!searchQuery.trim()) {
@@ -97,7 +123,7 @@ export default function AdminStoreUsersPage({
     const timer = setTimeout(async () => {
       setSearching(true);
       try {
-        const res = await fetch(`/api/admin/users?query=${encodeURIComponent(searchQuery)}&limit=10`);
+        const res = await fetch(`/api/admin/users?query=${encodeURIComponent(searchQuery)}&limit=15`);
         if (res.ok) {
           const data = await res.json();
           setSearchResults(data.users ?? []);
@@ -209,87 +235,183 @@ export default function AdminStoreUsersPage({
 
         <form onSubmit={handleAddStaff} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
-            {/* User Search Input & Dropdown */}
-            <div className="relative md:col-span-2">
-              <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-gray-500">
-                Search & Select Registered User *
+            {/* User Selection — Email Dropdown + Search */}
+            <div className="relative md:col-span-2 space-y-3">
+              <label className="block text-xs font-bold uppercase tracking-wide text-gray-500">
+                Select / Search Registered User *
               </label>
-              
+
               {selectedUser ? (
                 <div className="flex items-center justify-between rounded-xl border border-emerald-300 bg-emerald-50/60 p-2.5">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 text-white font-bold text-xs">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white font-bold text-xs">
                       {selectedUser.name.charAt(0).toUpperCase()}
                     </div>
                     <div>
                       <p className="text-xs font-bold text-gray-900">{selectedUser.name}</p>
-                      <p className="text-[11px] text-gray-500">{selectedUser.email} (ID: #{selectedUser.id})</p>
+                      <p className="text-[11px] text-gray-500">{selectedUser.email} · ID #{selectedUser.id}</p>
                     </div>
                   </div>
                   <button
                     type="button"
-                    onClick={() => {
-                      setSelectedUser(null);
-                      setSearchQuery("");
-                    }}
-                    className="text-xs font-semibold text-red-600 hover:text-red-800 px-2 py-1"
+                    onClick={() => { setSelectedUser(null); setSearchQuery(""); setDropdownFilter(""); }}
+                    className="ml-3 shrink-0 text-xs font-semibold text-red-500 hover:text-red-700 px-2 py-1 rounded-lg hover:bg-red-50 transition-colors"
                   >
                     Change
                   </button>
                 </div>
               ) : (
-                <div className="relative">
-                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
-                    {searching ? <Loader2 size={15} className="animate-spin text-emerald-600" /> : <Search size={15} />}
-                  </div>
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => {
-                      setSearchQuery(e.target.value);
-                      setShowDropdown(true);
-                    }}
-                    onFocus={() => setShowDropdown(true)}
-                    placeholder="Search by name, email, or user ID..."
-                    className="w-full rounded-xl border border-gray-200 bg-gray-50 pl-9 pr-4 py-2.5 text-xs text-gray-900 placeholder-gray-400 focus:border-emerald-600 focus:bg-white focus:outline-none"
-                  />
+                <>
+                  {/* ── Option A: Email Dropdown ── */}
+                  <div className="relative">
+                    <p className="mb-1 text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Option A — Pick from recent users</p>
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setShowEmailDropdown((v) => !v)}
+                        className="flex w-full items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-xs text-gray-700 hover:border-emerald-400 hover:bg-white transition-all focus:outline-none"
+                      >
+                        <span className="flex items-center gap-2">
+                          <User size={13} className="text-gray-400" />
+                          {loadingUsers ? "Loading users…" : "Select a user by email (most recent first)"}
+                        </span>
+                        <svg className={`w-4 h-4 text-gray-400 transition-transform ${showEmailDropdown ? "rotate-180" : ""}`} viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" /></svg>
+                      </button>
 
-                  {/* Dropdown Results */}
-                  {showDropdown && searchQuery.trim().length > 0 && (
-                    <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-60 overflow-y-auto rounded-xl border border-gray-200 bg-white p-1 shadow-lg">
-                      {searching ? (
-                        <div className="p-3 text-center text-xs text-gray-400">Searching users...</div>
-                      ) : searchResults.length === 0 ? (
-                        <div className="p-3 text-center text-xs text-gray-400">No users found matching &quot;{searchQuery}&quot;</div>
-                      ) : (
-                        searchResults.map((u) => (
-                          <button
-                            key={u.id}
-                            type="button"
-                            onClick={() => {
-                              setSelectedUser(u);
-                              setShowDropdown(false);
-                            }}
-                            className="flex w-full items-center justify-between rounded-lg p-2 text-left text-xs hover:bg-emerald-50 transition-colors"
-                          >
-                            <div className="flex items-center gap-2.5">
-                              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gray-100 font-bold text-gray-600">
-                                {u.name ? u.name.charAt(0).toUpperCase() : "U"}
-                              </div>
-                              <div>
-                                <p className="font-bold text-gray-900">{u.name}</p>
-                                <p className="text-[10px] text-gray-500">{u.email}</p>
-                              </div>
+                      {showEmailDropdown && (
+                        <div className="absolute left-0 right-0 top-full z-30 mt-1 rounded-xl border border-gray-200 bg-white shadow-xl">
+                          {/* Filter inside dropdown */}
+                          <div className="sticky top-0 border-b border-gray-100 bg-white px-3 py-2">
+                            <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5">
+                              <Search size={13} className="text-gray-400 shrink-0" />
+                              <input
+                                type="text"
+                                autoFocus
+                                value={dropdownFilter}
+                                onChange={(e) => setDropdownFilter(e.target.value)}
+                                placeholder="Filter by name or email…"
+                                className="flex-1 bg-transparent text-xs text-gray-800 placeholder-gray-400 outline-none"
+                              />
+                              {dropdownFilter && (
+                                <button type="button" onClick={() => setDropdownFilter("")} className="text-gray-400 hover:text-gray-600">
+                                  <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5"><path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" /></svg>
+                                </button>
+                              )}
                             </div>
-                            <span className="rounded-md bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-600">
-                              ID: #{u.id}
-                            </span>
-                          </button>
-                        ))
+                          </div>
+
+                          <div className="max-h-56 overflow-y-auto p-1">
+                            {loadingUsers ? (
+                              <div className="flex items-center justify-center gap-2 py-6 text-xs text-gray-400">
+                                <Loader2 size={14} className="animate-spin" /> Loading users…
+                              </div>
+                            ) : (
+                              (() => {
+                                const filtered = allUsers.filter((u) => {
+                                  if (!dropdownFilter.trim()) return true;
+                                  const q = dropdownFilter.toLowerCase();
+                                  return (
+                                    u.email.toLowerCase().includes(q) ||
+                                    u.name.toLowerCase().includes(q) ||
+                                    String(u.id).includes(q)
+                                  );
+                                });
+                                if (filtered.length === 0) {
+                                  return <div className="py-5 text-center text-xs text-gray-400">No users match &ldquo;{dropdownFilter}&rdquo;</div>;
+                                }
+                                return filtered.map((u) => (
+                                  <button
+                                    key={u.id}
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedUser(u);
+                                      setShowEmailDropdown(false);
+                                      setDropdownFilter("");
+                                    }}
+                                    className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-xs hover:bg-emerald-50 transition-colors"
+                                  >
+                                    <div className="flex items-center gap-2.5 min-w-0">
+                                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-100 font-bold text-indigo-700 text-[11px]">
+                                        {u.name ? u.name.charAt(0).toUpperCase() : "U"}
+                                      </div>
+                                      <div className="min-w-0">
+                                        <p className="font-bold text-gray-900 truncate">{u.name}</p>
+                                        <p className="text-[10px] text-gray-500 truncate">{u.email}</p>
+                                      </div>
+                                    </div>
+                                    <div className="shrink-0 flex flex-col items-end gap-0.5">
+                                      <span className="rounded-md bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold text-gray-500">#{u.id}</span>
+                                      {u.created_at && (
+                                        <span className="text-[9px] text-gray-400">
+                                          {new Date(u.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </button>
+                                ));
+                              })()
+                            )}
+                          </div>
+                        </div>
                       )}
                     </div>
-                  )}
-                </div>
+                  </div>
+
+                  {/* ── Divider ── */}
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-px bg-gray-200" />
+                    <span className="text-[10px] font-bold text-gray-400 uppercase">or search manually</span>
+                    <div className="flex-1 h-px bg-gray-200" />
+                  </div>
+
+                  {/* ── Option B: Text Search ── */}
+                  <div className="relative">
+                    <p className="mb-1 text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Option B — Search by name / email / ID</p>
+                    <div className="relative">
+                      <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+                        {searching ? <Loader2 size={14} className="animate-spin text-emerald-600" /> : <Search size={14} />}
+                      </div>
+                      <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => { setSearchQuery(e.target.value); setShowDropdown(true); }}
+                        onFocus={() => setShowDropdown(true)}
+                        placeholder="Type name, email or user ID…"
+                        className="w-full rounded-xl border border-gray-200 bg-gray-50 pl-9 pr-4 py-2.5 text-xs text-gray-900 placeholder-gray-400 focus:border-emerald-500 focus:bg-white focus:outline-none"
+                      />
+
+                      {showDropdown && searchQuery.trim().length > 0 && (
+                        <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-60 overflow-y-auto rounded-xl border border-gray-200 bg-white p-1 shadow-lg">
+                          {searching ? (
+                            <div className="p-3 text-center text-xs text-gray-400">Searching…</div>
+                          ) : searchResults.length === 0 ? (
+                            <div className="p-3 text-center text-xs text-gray-400">No users found for &ldquo;{searchQuery}&rdquo;</div>
+                          ) : (
+                            searchResults.map((u) => (
+                              <button
+                                key={u.id}
+                                type="button"
+                                onClick={() => { setSelectedUser(u); setShowDropdown(false); }}
+                                className="flex w-full items-center justify-between rounded-lg p-2 text-left text-xs hover:bg-emerald-50 transition-colors"
+                              >
+                                <div className="flex items-center gap-2.5">
+                                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gray-100 font-bold text-gray-600 text-[11px]">
+                                    {u.name ? u.name.charAt(0).toUpperCase() : "U"}
+                                  </div>
+                                  <div>
+                                    <p className="font-bold text-gray-900">{u.name}</p>
+                                    <p className="text-[10px] text-gray-500">{u.email}</p>
+                                  </div>
+                                </div>
+                                <span className="rounded-md bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-600">#{u.id}</span>
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
               )}
             </div>
 

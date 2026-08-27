@@ -6,6 +6,8 @@ import { SiteFooter } from "@/components/site-footer";
 import SellerNavbar from "@/components/seller-navbar";
 import SellerWalletsClient from "./seller-wallets-client";
 
+import { canAccessSellerRoute, hasStorePermission } from "@/lib/store-permissions";
+
 export default async function SellerWalletsPage({
   searchParams,
 }: {
@@ -18,7 +20,7 @@ export default async function SellerWalletsPage({
   if (!session?.user?.id) redirect("/signin");
 
   const userId = Number(session.user.id);
-  const role = (session.user as { role?: string }).role ?? "customer";
+  const globalRole = (session.user as { role?: string }).role ?? "customer";
   const stores = await StoreRepository.getUserStores(userId);
   const primaryStore =
     (!isNaN(reqStoreId) && stores.find((s) => s.id === reqStoreId)) ||
@@ -33,12 +35,21 @@ export default async function SellerWalletsPage({
     );
   }
 
-  const canWithdraw =
-    role === "store_owner" ||
-    role === "admin" ||
-    role === "super_admin" ||
-    role === "platform_admin" ||
-    role === "finance_admin";
+  const storeRole =
+    (await StoreRepository.getUserStoreRole(userId, primaryStore.id)) ||
+    (globalRole === "admin" || globalRole === "super_admin" ? "store_owner" : "sales_staff");
+
+  if (!canAccessSellerRoute(storeRole, "/seller/wallets")) {
+    redirect(`/seller/dashboard?storeId=${primaryStore.id}&access=denied&required=view_wallet`);
+  }
+
+  const isGlobalAdmin =
+    globalRole === "admin" ||
+    globalRole === "super_admin" ||
+    globalRole === "platform_admin" ||
+    globalRole === "finance_admin";
+
+  const canWithdraw = isGlobalAdmin || hasStorePermission(storeRole, "withdraw_wallet");
 
   return (
     <div className="min-h-screen bg-surface-soft text-foreground flex flex-col">
@@ -46,7 +57,7 @@ export default async function SellerWalletsPage({
       <main className="container-shell py-8 flex-1">
         <div className="grid gap-8 lg:grid-cols-[280px_1fr] lg:items-start">
           <aside>
-            <SellerNavbar storeId={primaryStore.id} storeSlug={primaryStore.slug} stores={stores} />
+            <SellerNavbar storeId={primaryStore.id} storeSlug={primaryStore.slug} stores={stores} storeRole={storeRole} />
           </aside>
           <SellerWalletsClient
             store={primaryStore}

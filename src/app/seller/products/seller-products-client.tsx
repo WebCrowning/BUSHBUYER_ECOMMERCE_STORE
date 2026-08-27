@@ -482,6 +482,27 @@ export default function SellerProductsClient({
 
       {/* Catalog Table */}
       <section className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+        {/* Blocked Products Alert Banner if any */}
+        {products.some((p) => p.status === "blocked" || (p as any).admin_blocked === 1) && (
+          <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-xs text-red-800">
+            <div className="flex items-center gap-2 font-bold text-red-900">
+              <AlertTriangle size={16} className="text-red-600 shrink-0" />
+              <span>Product Moderation Alert</span>
+            </div>
+            <p className="mt-1 text-red-700 leading-relaxed">
+              Some of your products are marked as <strong>Blocked</strong> by platform administrators and are hidden from buyers. See items highlighted below with the notice <em>&quot;Product blocked. Contact admin.&quot;</em>
+            </p>
+            <div className="mt-2.5">
+              <Link
+                href="/support"
+                className="inline-flex items-center gap-1 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold px-3 py-1 text-[11px] shadow-sm transition-all"
+              >
+                Contact Platform Admin / Support →
+              </Link>
+            </div>
+          </div>
+        )}
+
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold text-brand-deep">Store Products ({products.length})</h2>
           {lowStockProducts.length > 0 && (
@@ -498,6 +519,7 @@ export default function SellerProductsClient({
                 <th className="px-4 py-3">Product</th>
                 <th className="px-3 py-3">Category</th>
                 <th className="px-3 py-3">Price (USD / CFA)</th>
+                <th className="px-3 py-3">Status</th>
                 <th className="px-3 py-3">Stock</th>
                 <th className="px-3 py-3 text-right">Actions</th>
               </tr>
@@ -505,88 +527,123 @@ export default function SellerProductsClient({
             <tbody className="divide-y divide-border">
               {products.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-10 text-center text-foreground/50">
+                  <td colSpan={6} className="py-10 text-center text-foreground/50">
                     <Package size={32} className="mx-auto mb-2 text-foreground/40" />
                     No products found for this store. Add your first product above!
                   </td>
                 </tr>
               ) : (
-                products.map((p) => (
-                  <tr key={p.id} className="hover:bg-surface transition-colors">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        {p.image ? (
-                          <img src={p.image} alt={p.name} className="h-10 w-10 rounded-lg object-cover border border-border shrink-0" />
-                        ) : (
-                          <div className="h-10 w-10 rounded-lg bg-surface border border-border flex items-center justify-center font-bold text-foreground/50 shrink-0">
-                            P
+                products.map((p) => {
+                  const isBlocked = p.status === "blocked" || (p as any).admin_blocked === 1;
+
+                  return (
+                    <tr
+                      key={p.id}
+                      className={`transition-colors ${
+                        isBlocked ? "bg-red-50/40 hover:bg-red-50/60" : "hover:bg-surface"
+                      }`}
+                    >
+                      <td className="px-4 py-3">
+                        <div className="flex items-start gap-3">
+                          <div className="relative h-10 w-10 rounded-lg overflow-hidden border border-border shrink-0 bg-surface">
+                            {p.image ? (
+                              <img src={p.image} alt={p.name} className="h-full w-full object-cover" />
+                            ) : (
+                              <div className="h-full w-full flex items-center justify-center font-bold text-foreground/50">
+                                P
+                              </div>
+                            )}
+                            {isBlocked && (
+                              <div className="absolute inset-0 bg-red-900/60 flex items-center justify-center text-white text-[8px] font-black uppercase">
+                                Blocked
+                              </div>
+                            )}
                           </div>
-                        )}
-                        <div>
-                          <p className="font-bold text-brand-deep">{p.name}</p>
-                          <p className="text-[10px] text-foreground/50">ID: #{p.id} &bull; Per {p.packageName} ({Number(p.unitValue)} {p.unitType})</p>
+                          <div>
+                            <p className="font-bold text-brand-deep">{p.name}</p>
+                            <p className="text-[10px] text-foreground/50">
+                              ID: #{p.id} &bull; Per {p.packageName} ({Number(p.unitValue)} {p.unitType})
+                            </p>
+                            {isBlocked && (
+                              <div className="mt-1 inline-flex items-center gap-1 rounded-md bg-red-100/90 border border-red-300 px-2 py-0.5 text-[10px] font-bold text-red-800">
+                                <AlertTriangle size={11} className="text-red-600" />
+                                <span>Product blocked. Contact admin.</span>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-3 py-3">
-                      <span className="rounded-md bg-surface border border-border px-2 py-0.5 text-[11px] font-medium text-foreground/70">
-                        {p.category}
-                      </span>
-                    </td>
-                    <td className="px-3 py-3">
-                      <div className="font-bold text-brand-deep">${Number(p.price).toFixed(2)}</div>
-                      <div className="text-[10px] font-semibold text-emerald-700">
-                        {formatCurrency(Math.round(Number(p.price) * USD_TO_XAF), "XAF")} CFA
-                      </div>
-                    </td>
-                    <td className="px-3 py-3">
-                      {Number(p.stockPackages) <= LOW_STOCK_THRESHOLD ? (
-                        <span className="rounded-md bg-red-50 border border-red-200 px-2 py-0.5 text-[11px] font-bold text-red-600">
-                          {p.stockPackages} packages (Low)
+                      </td>
+                      <td className="px-3 py-3">
+                        <span className="rounded-md bg-surface border border-border px-2 py-0.5 text-[11px] font-medium text-foreground/70">
+                          {p.category}
                         </span>
-                      ) : (
-                        <span className="rounded-md bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[11px] font-bold text-emerald-600">
-                          {p.stockPackages} packages
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-3 py-3 text-right">
-                      <div className="flex justify-end gap-2">
-                        <button
-                          onClick={() => {
-                            setEditingId(p.id);
-                            setForm({
-                              name: p.name,
-                              price: String(p.price),
-                              transportFee: String(p.transportFee ?? 0),
-                              image: p.image || "",
-                              imageZoom: String(p.imageZoom ?? 100),
-                              description: p.description || "",
-                              featured: p.featured ? "1" : "0",
-                              category: p.category || "General",
-                              packageName: (p.packageName as ProductForm["packageName"]) || "pack",
-                              unitType: (p.unitType as ProductForm["unitType"]) || "pcs",
-                              unitValue: String(p.unitValue || 1),
-                              stockPackages: String(p.stockPackages || 0),
-                            });
-                          }}
-                          className="rounded-lg bg-surface hover:bg-surface-soft border border-border p-1.5 text-foreground/70 hover:text-brand-deep transition-colors"
-                          title="Edit product"
-                        >
-                          <Edit2 size={14} />
-                        </button>
-                        <button
-                          onClick={() => deleteProduct(p.id)}
-                          disabled={deletingId === p.id}
-                          className="rounded-lg bg-surface hover:bg-red-50 border border-border hover:border-red-300 p-1.5 text-foreground/60 hover:text-red-600 transition-colors"
-                          title="Delete product"
-                        >
-                          {deletingId === p.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                      <td className="px-3 py-3">
+                        <div className="font-bold text-brand-deep">${Number(p.price).toFixed(2)}</div>
+                        <div className="text-[10px] font-semibold text-emerald-700">
+                          {formatCurrency(Math.round(Number(p.price) * USD_TO_XAF), "XAF")} CFA
+                        </div>
+                      </td>
+                      <td className="px-3 py-3">
+                        {isBlocked ? (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-red-300 bg-red-100 px-2.5 py-0.5 text-[10px] font-bold text-red-700">
+                            🚫 Blocked by Admin
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[10px] font-bold text-emerald-700">
+                            ✓ Active
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-3 py-3">
+                        {Number(p.stockPackages) <= LOW_STOCK_THRESHOLD ? (
+                          <span className="rounded-md bg-red-50 border border-red-200 px-2 py-0.5 text-[11px] font-bold text-red-600">
+                            {p.stockPackages} packages (Low)
+                          </span>
+                        ) : (
+                          <span className="rounded-md bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[11px] font-bold text-emerald-600">
+                            {p.stockPackages} packages
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-3 py-3 text-right">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => {
+                              setEditingId(p.id);
+                              setForm({
+                                name: p.name,
+                                price: String(p.price),
+                                transportFee: String(p.transportFee ?? 0),
+                                image: p.image || "",
+                                imageZoom: String(p.imageZoom ?? 100),
+                                description: p.description || "",
+                                featured: p.featured ? "1" : "0",
+                                category: p.category || "General",
+                                packageName: (p.packageName as ProductForm["packageName"]) || "pack",
+                                unitType: (p.unitType as ProductForm["unitType"]) || "pcs",
+                                unitValue: String(p.unitValue || 1),
+                                stockPackages: String(p.stockPackages || 0),
+                              });
+                            }}
+                            className="rounded-lg bg-surface hover:bg-surface-soft border border-border p-1.5 text-foreground/70 hover:text-brand-deep transition-colors"
+                            title="Edit product"
+                          >
+                            <Edit2 size={14} />
+                          </button>
+                          <button
+                            onClick={() => deleteProduct(p.id)}
+                            disabled={deletingId === p.id}
+                            className="rounded-lg bg-surface hover:bg-red-50 border border-border hover:border-red-300 p-1.5 text-foreground/60 hover:text-red-600 transition-colors"
+                            title="Delete product"
+                          >
+                            {deletingId === p.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

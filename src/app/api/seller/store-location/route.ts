@@ -14,6 +14,9 @@ const storeLocationSchema = z.object({
   landmark: z.string().max(190).nullable().optional(),
   address: z.string().max(500).nullable().optional(),
   country: z.string().max(80).optional().default("Cameroon"),
+  is_validated: z.boolean().optional().default(false),
+  accuracy: z.number().nullable().optional(),
+  verification_method: z.string().max(50).optional().default("gps_live"),
 });
 
 export async function POST(request: Request) {
@@ -32,7 +35,19 @@ export async function POST(request: Request) {
       );
     }
 
-    const { storeId, latitude, longitude, city, quarter, landmark, address, country } = parsed.data;
+    const {
+      storeId,
+      latitude,
+      longitude,
+      city,
+      quarter,
+      landmark,
+      address,
+      country,
+      is_validated,
+      accuracy,
+      verification_method,
+    } = parsed.data;
 
     // Verify user authorization for this store
     const isAuthorized = access.isSuperAdmin || access.userStoreIds.includes(storeId);
@@ -49,24 +64,71 @@ export async function POST(request: Request) {
         ? `${latitude}, ${longitude}`
         : null);
 
-    await query(
-      `UPDATE stores SET
-         latitude = ?,
-         longitude = ?,
-         gps_coordinates = ?,
-         city = COALESCE(?, city),
-         quarter = COALESCE(?, quarter),
-         landmark = COALESCE(?, landmark),
-         address = COALESCE(?, address),
-         country = COALESCE(?, country)
-       WHERE id = ?`,
-      [latitude ?? null, longitude ?? null, gpsCoords, city ?? null, quarter ?? null, landmark ?? null, address ?? null, country ?? "Cameroon", storeId]
-    );
+    const hasValidCoords = latitude !== null && longitude !== null && latitude !== undefined && longitude !== undefined;
+    const shouldVerify = is_validated && hasValidCoords;
+
+    if (shouldVerify) {
+      await query(
+        `UPDATE stores SET
+           latitude = ?,
+           longitude = ?,
+           gps_coordinates = ?,
+           city = COALESCE(?, city),
+           quarter = COALESCE(?, quarter),
+           landmark = COALESCE(?, landmark),
+           address = COALESCE(?, address),
+           country = COALESCE(?, country),
+           is_location_verified = 1,
+           location_verified_at = NOW(),
+           location_accuracy_meters = ?,
+           location_verification_method = ?
+         WHERE id = ?`,
+        [
+          latitude ?? null,
+          longitude ?? null,
+          gpsCoords,
+          city ?? null,
+          quarter ?? null,
+          landmark ?? null,
+          address ?? null,
+          country ?? "Cameroon",
+          accuracy ? Math.round(accuracy) : null,
+          verification_method || "gps_live",
+          storeId,
+        ]
+      );
+    } else {
+      await query(
+        `UPDATE stores SET
+           latitude = ?,
+           longitude = ?,
+           gps_coordinates = ?,
+           city = COALESCE(?, city),
+           quarter = COALESCE(?, quarter),
+           landmark = COALESCE(?, landmark),
+           address = COALESCE(?, address),
+           country = COALESCE(?, country)
+         WHERE id = ?`,
+        [
+          latitude ?? null,
+          longitude ?? null,
+          gpsCoords,
+          city ?? null,
+          quarter ?? null,
+          landmark ?? null,
+          address ?? null,
+          country ?? "Cameroon",
+          storeId,
+        ]
+      );
+    }
 
     const updated = await StoreRepository.findById(storeId);
     return NextResponse.json({
       success: true,
-      message: "Store GPS location successfully updated",
+      message: shouldVerify
+        ? "Store GPS location successfully validated and verified!"
+        : "Store GPS location successfully updated",
       store: updated,
     });
   } catch (err) {

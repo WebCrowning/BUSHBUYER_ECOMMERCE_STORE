@@ -7,6 +7,8 @@ import { SiteFooter } from "@/components/site-footer";
 import SellerNavbar from "@/components/seller-navbar";
 import SellerProductsClient from "./seller-products-client";
 
+import { canAccessSellerRoute } from "@/lib/store-permissions";
+
 export default async function SellerProductsPage({
   searchParams,
 }: {
@@ -22,7 +24,6 @@ export default async function SellerProductsPage({
   const reqStoreId = rawStoreId ? parseInt(rawStoreId, 10) : NaN;
 
   const userId = Number(session.user.id);
-  const role = (session.user as { role?: string }).role;
   const stores = await StoreRepository.getUserStores(userId);
   const primaryStore =
     (!isNaN(reqStoreId) && stores.find((s) => s.id === reqStoreId)) ||
@@ -52,7 +53,20 @@ export default async function SellerProductsPage({
     );
   }
 
-  const productRows = await ProductRepository.listProducts({ store_id: primaryStore.id, limit: 100 });
+  const globalRole = (session.user as { role?: string })?.role;
+  const storeRole =
+    (await StoreRepository.getUserStoreRole(userId, primaryStore.id)) ||
+    (globalRole === "admin" || globalRole === "super_admin" ? "store_owner" : "sales_staff");
+
+  if (!canAccessSellerRoute(storeRole, "/seller/products")) {
+    redirect(`/seller/dashboard?storeId=${primaryStore.id}&access=denied&required=manage_products`);
+  }
+
+  const productRows = await ProductRepository.listProducts({
+    store_id: primaryStore.id,
+    include_blocked: true,
+    limit: 100,
+  });
   const products = productRows.map(ProductRepository.mapToProduct);
   const categoryRows = await ProductRepository.listCategories(primaryStore.id);
 
@@ -63,7 +77,7 @@ export default async function SellerProductsPage({
       <main className="container-shell py-8 flex-1">
         <div className="grid gap-8 lg:grid-cols-[280px_1fr] lg:items-start">
           <aside>
-            <SellerNavbar storeId={primaryStore.id} storeSlug={primaryStore.slug} stores={stores} />
+            <SellerNavbar storeId={primaryStore.id} storeSlug={primaryStore.slug} stores={stores} storeRole={storeRole} />
           </aside>
 
           <SellerProductsClient

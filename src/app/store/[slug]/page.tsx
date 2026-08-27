@@ -9,6 +9,7 @@ import { ShareModal } from "@/components/share-modal";
 import { notFound } from "next/navigation";
 import { StoreAttributor } from "@/components/store-attributor";
 import { StoreBannerHeader } from "@/components/store/store-banner-header";
+import { StoreLocationCard } from "@/components/store/store-location-card";
 import { query } from "@/lib/db";
 import { ShieldCheck, Star, MapPin, Phone, Mail, Clock, ShoppingBag, Users, Calendar, CircleHelp, Globe } from "lucide-react";
 
@@ -163,6 +164,11 @@ export default async function StoreProfilePage({ params }: { params: Promise<{ s
                 <Calendar className="w-3.5 h-3.5" /> Open Monday - Saturday
               </p>
             </div>
+          </div>
+
+          {/* Interactive Google Map & Physical Store Tracking */}
+          <div className="mt-8">
+            <StoreLocationCard store={store} />
           </div>
 
           {/* Store Products Catalog */}

@@ -166,6 +166,24 @@ export class StoreRepository {
     );
   }
 
+  static async getUserStoresWithRoles(userId: number): Promise<Array<Store & { store_role: SystemRole }>> {
+    return query<Array<Store & { store_role: SystemRole }>>(
+      `SELECT s.*, su.store_role
+       FROM stores s
+       JOIN store_users su ON su.store_id = s.id
+       WHERE su.user_id = ? AND su.status = 'active'`,
+      [userId]
+    );
+  }
+
+  static async getUserStoreRole(userId: number, storeId: number): Promise<SystemRole | null> {
+    const rows = await query<{ store_role: SystemRole }[]>(
+      "SELECT store_role FROM store_users WHERE user_id = ? AND store_id = ? AND status = 'active' LIMIT 1",
+      [userId, storeId]
+    );
+    return rows[0]?.store_role ?? null;
+  }
+
   static async isUserStoreStaff(userId: number, storeId: number): Promise<boolean> {
     const rows = await query<{ id: number }[]>(
       "SELECT id FROM store_users WHERE user_id = ? AND store_id = ? AND status = 'active' LIMIT 1",
@@ -190,5 +208,112 @@ export class StoreRepository {
       [storeId, userId]
     );
     return rows.length > 0;
+  }
+
+  static async recordStoreVisit(
+    storeId: number,
+    userId?: number | null,
+    ipAddress?: string | null,
+    userAgent?: string | null
+  ): Promise<void> {
+    try {
+      if (userId) {
+        // If logged in, upsert by (user_id, store_id)
+        await query(
+          `INSERT INTO user_store_visits (user_id, store_id, ip_address, user_agent, visit_count, last_visited_at)
+           VALUES (?, ?, ?, ?, 1, NOW())
+           ON DUPLICATE KEY UPDATE
+             visit_count = visit_count + 1,
+             last_visited_at = NOW(),
+             ip_address = COALESCE(VALUES(ip_address), ip_address),
+             user_agent = COALESCE(VALUES(user_agent), user_agent)`,
+          [userId, storeId, ipAddress || null, userAgent ? userAgent.substring(0, 255) : null]
+        );
+      } else {
+        // Anonymous visit
+        await query(
+          `INSERT INTO user_store_visits (user_id, store_id, ip_address, user_agent, visit_count, last_visited_at)
+           VALUES (NULL, ?, ?, ?, 1, NOW())`,
+          [storeId, ipAddress || null, userAgent ? userAgent.substring(0, 255) : null]
+        );
+      }
+    } catch (err) {
+      console.warn("Non-fatal: failed to record store visit", err);
+    }
+  }
+
+  static async getUserVisitedStores(userId: number, limit = 30): Promise<{ store: Store; visit_count: number; last_visited_at: string }[]> {
+    const rows = await query<any[]>(
+      `SELECT
+        s.*,
+        uv.visit_count,
+        uv.last_visited_at
+       FROM user_store_visits uv
+       JOIN stores s ON s.id = uv.store_id
+       WHERE uv.user_id = ? AND s.store_status = 'active'
+       ORDER BY uv.last_visited_at DESC
+       LIMIT ?`,
+      [userId, limit]
+    );
+
+    return rows.map((r) => {
+      const { visit_count, last_visited_at, ...storeData } = r;
+      return {
+        store: storeData as Store,
+        visit_count: Number(visit_count || 1),
+        last_visited_at: String(last_visited_at || new Date().toISOString()),
+      };
+    });
+  }
+
+  static async getStoresByIds(storeIds: number[]): Promise<Store[]> {
+    if (!storeIds.length) return [];
+    const placeholders = storeIds.map(() => "?").join(",");
+    return query<Store[]>(`SELECT * FROM stores WHERE id IN (${placeholders})`, storeIds);
+  }
+
+  static async validateStoreLocation(
+    storeId: number,
+    data: {
+      latitude: number;
+      longitude: number;
+      accuracy?: number | null;
+      method?: string;
+      city?: string | null;
+      quarter?: string | null;
+      landmark?: string | null;
+      address?: string | null;
+    }
+  ): Promise<Store | null> {
+    const gpsCoords = `${data.latitude}, ${data.longitude}`;
+    await query(
+      `UPDATE stores SET
+        latitude = ?,
+        longitude = ?,
+        gps_coordinates = ?,
+        city = COALESCE(?, city),
+        quarter = COALESCE(?, quarter),
+        landmark = COALESCE(?, landmark),
+        address = COALESCE(?, address),
+        is_location_verified = 1,
+        location_verified_at = NOW(),
+        location_accuracy_meters = ?,
+        location_verification_method = ?
+       WHERE id = ?`,
+      [
+        data.latitude,
+        data.longitude,
+        gpsCoords,
+        data.city || null,
+        data.quarter || null,
+        data.landmark || null,
+        data.address || null,
+        data.accuracy ? Math.round(data.accuracy) : null,
+        data.method || "gps_device",
+        storeId,
+      ]
+    );
+
+    return this.findById(storeId);
   }
 }

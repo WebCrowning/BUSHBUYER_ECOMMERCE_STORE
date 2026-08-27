@@ -11,12 +11,14 @@ import { SiteFooter } from "@/components/site-footer";
 import SellerNavbar from "@/components/seller-navbar";
 import { Store, DollarSign, Package, ShoppingBag, Users, ArrowUpRight, Truck, UserPlus, ShieldCheck, MapPin } from "lucide-react";
 
+import { STORE_ROLE_META } from "@/lib/store-permissions";
+
 export default async function SellerDashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ storeId?: string }>;
+  searchParams: Promise<{ storeId?: string; access?: string; required?: string }>;
 }) {
-  const { storeId: rawStoreId } = await searchParams;
+  const { storeId: rawStoreId, access, required } = await searchParams;
   const reqStoreId = rawStoreId ? parseInt(rawStoreId, 10) : NaN;
 
   const session = await auth();
@@ -37,6 +39,13 @@ export default async function SellerDashboardPage({
     return <div className="p-8 text-center text-foreground/70">No store found. Please contact Super Admin.</div>;
   }
 
+  const globalRole = (session.user as { role?: string })?.role;
+  const storeRole =
+    (await StoreRepository.getUserStoreRole(userId, primaryStore.id)) ||
+    (globalRole === "admin" || globalRole === "super_admin" ? "store_owner" : "sales_staff");
+
+  const roleMeta = STORE_ROLE_META[storeRole] ?? STORE_ROLE_META.store_owner;
+
   const wallet = await WalletRepository.getByStoreId(primaryStore.id);
   const products = await ProductRepository.listProducts({ store_id: primaryStore.id, limit: 100 });
   const recentOrders = await OrderRepository.listOrders({ storeId: primaryStore.id, limit: 10 });
@@ -47,9 +56,25 @@ export default async function SellerDashboardPage({
       <SiteHeader />
 
       <main className="container-shell py-8 flex-1">
+        {/* Access Denied Notice if redirected from unauthorized route */}
+        {access === "denied" && (
+          <div className="mb-6 rounded-2xl border border-rose-300 bg-rose-50 p-4 sm:p-5 text-rose-900 shadow-sm flex items-start gap-3.5">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-rose-600 text-white font-bold text-sm">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-bold text-sm text-rose-900">Restricted Section — Insufficient Authority</h3>
+              <p className="text-xs text-rose-700 mt-0.5">
+                Your role as <span className="font-bold underline">{roleMeta.label}</span> does not have permission to access that section
+                {required ? ` (requires '${required.replace(/_/g, " ")}')` : ""}. Please contact the Store Owner for elevated permissions.
+              </p>
+            </div>
+          </div>
+        )}
+
         <div className="grid gap-8 lg:grid-cols-[280px_1fr] lg:items-start">
           <aside>
-            <SellerNavbar storeId={primaryStore.id} storeSlug={primaryStore.slug} stores={stores} />
+            <SellerNavbar storeId={primaryStore.id} storeSlug={primaryStore.slug} stores={stores} storeRole={storeRole} />
           </aside>
 
           <div className="space-y-6">
@@ -62,9 +87,12 @@ export default async function SellerDashboardPage({
                   </div>
                   <div>
                     <h1 className="text-2xl font-extrabold text-brand-deep">{primaryStore.name}</h1>
-                    <div className="flex items-center gap-2 mt-0.5">
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                       <span className="px-2.5 py-0.5 bg-emerald-50 border border-emerald-200 text-emerald-600 text-[10px] font-bold rounded-md uppercase tracking-wider">
                         {primaryStore.store_status}
+                      </span>
+                      <span className={`px-2.5 py-0.5 text-[10px] font-bold rounded-md uppercase tracking-wider border ${roleMeta.badgeClass}`}>
+                        🛡️ {roleMeta.label}
                       </span>
                       <span className="text-xs text-foreground/60 font-mono">/store/{primaryStore.slug}</span>
                       {primaryStore.city && (

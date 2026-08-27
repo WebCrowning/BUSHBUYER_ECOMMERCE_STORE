@@ -9,6 +9,8 @@ type FeaturedProductCardProps = {
   image: string;
   swapImage?: string | null;
   category?: string;
+  storeName?: string;
+  storeSlug?: string;
   shortNote: string;
 };
 
@@ -19,6 +21,8 @@ export function FeaturedProductCard({
   image,
   swapImage,
   category,
+  storeName,
+  storeSlug,
   shortNote,
 }: FeaturedProductCardProps) {
   const normalizedPrice = Number(price);
@@ -48,8 +52,13 @@ export function FeaturedProductCard({
         )}
         <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/55 to-transparent" />
         {category && (
-          <p className="absolute bottom-3 left-3 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-brand-deep">
+          <p className="absolute bottom-3 left-3 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-brand-deep shadow-xs">
             {category}
+          </p>
+        )}
+        {storeName && (
+          <p className="absolute top-3 right-3 rounded-full bg-black/75 backdrop-blur-xs px-2.5 py-0.5 text-[10px] font-bold text-white shadow-xs truncate max-w-[160px]">
+            🏪 {storeName}
           </p>
         )}
       </div>

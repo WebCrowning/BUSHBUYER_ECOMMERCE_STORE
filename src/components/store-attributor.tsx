@@ -30,9 +30,30 @@ export function StoreAttributor({ storeId, storeSlug }: { storeId: number; store
       if (storeSlug) {
         localStorage.setItem("ref_store_slug", storeSlug);
       }
+
+      // Track visited stores list for instant client map retrieval
+      const rawVisited = localStorage.getItem("bushbuyer_visited_stores");
+      let list: number[] = [];
+      try {
+        list = rawVisited ? JSON.parse(rawVisited) : [];
+      } catch {
+        list = [];
+      }
+      if (!Array.isArray(list)) list = [];
+      list = [storeId, ...list.filter((id) => id !== storeId)].slice(0, 30);
+      localStorage.setItem("bushbuyer_visited_stores", JSON.stringify(list));
     } catch {
       // localStorage may be blocked in private/incognito
     }
+
+    // Record visit asynchronously in DB
+    void fetch("/api/stores/visit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ storeId }),
+    }).catch(() => {
+      // Ignore background errors
+    });
   }, [storeId, storeSlug]);
 
   // ── Step 2: For authenticated users without attribution, persist to DB ──

@@ -55,7 +55,10 @@ export async function GET(request: Request) {
     const crossStore = searchParams.get("cross_store") === "true";
 
     const params: unknown[] = [];
-    const conditions: string[] = ["p.status = 'active'"];
+    const conditions: string[] = [
+      "p.status = 'active'",
+      "(p.admin_blocked IS NULL OR p.admin_blocked = 0)",
+    ];
 
     // When no search query → only show marketplace-enabled products
     // When searching with cross_store → show from all stores so users can discover everything

@@ -21,28 +21,42 @@ export async function GET(request: Request) {
 
   try {
     let sql = `
-      SELECT id, store_id AS storeId, name, price, transport_fee AS transportFee,
-             image, image_zoom AS imageZoom, description, featured, category,
-             package_name AS packageName, unit_type AS unitType, unit_value AS unitValue,
-             stock_packages AS stockPackages
-      FROM products
+      SELECT p.id, p.store_id AS storeId, p.name, p.price, p.discount_price AS discountPrice,
+             p.transport_fee AS transportFee, p.image, p.image_zoom AS imageZoom,
+             p.description, p.featured, p.category,
+             p.package_name AS packageName, p.unit_type AS unitType, p.unit_value AS unitValue,
+             p.stock_packages AS stockPackages, p.status, p.marketplace_enabled,
+             p.admin_blocked, p.admin_block_reason,
+             s.name AS storeName, s.slug AS storeSlug
+      FROM products p
+      LEFT JOIN stores s ON s.id = p.store_id
     `;
     const params: any[] = [];
 
-    // Determine target store_id: non-super admins are restricted to primaryStoreId; super admins default to store 0 (global index) unless paramStoreId is specified
-    const targetStoreId = !access.isSuperAdmin ? access.primaryStoreId : (paramStoreId !== null && paramStoreId !== undefined ? Number(paramStoreId) : 0);
-
-    if (targetStoreId === undefined || targetStoreId === null) {
-      return NextResponse.json({ products: [], categories: [] });
+    if (!access.isSuperAdmin) {
+      // Non-super admins restricted to their store
+      sql += " WHERE p.store_id = ?";
+      params.push(access.primaryStoreId);
+    } else if (paramStoreId === "all") {
+      // All stores for super admin
+    } else if (paramStoreId !== null && paramStoreId !== undefined && paramStoreId !== "") {
+      sql += " WHERE p.store_id = ?";
+      params.push(Number(paramStoreId));
+    } else {
+      // Default to all for admin overview, or 0 if explicitly legacy
+      // (When paramStoreId is not provided, super admin sees all products by default)
     }
 
-    sql += " WHERE store_id = ? ORDER BY created_at DESC";
-    params.push(targetStoreId);
+    sql += " ORDER BY p.id DESC";
 
     const products = await query<Product[]>(sql, params);
 
-    const categoriesSql = "SELECT DISTINCT category FROM products WHERE store_id = ? AND category IS NOT NULL AND TRIM(category) != '' ORDER BY category ASC";
-    const categoriesParams = [targetStoreId];
+    const categoriesSql = !access.isSuperAdmin || (paramStoreId && paramStoreId !== "all")
+      ? "SELECT DISTINCT category FROM products WHERE store_id = ? AND category IS NOT NULL AND TRIM(category) != '' ORDER BY category ASC"
+      : "SELECT DISTINCT category FROM products WHERE category IS NOT NULL AND TRIM(category) != '' ORDER BY category ASC";
+    const categoriesParams = !access.isSuperAdmin
+      ? [access.primaryStoreId]
+      : (paramStoreId && paramStoreId !== "all" ? [Number(paramStoreId)] : []);
 
     const categories = await query<Array<{ category: string }>>(categoriesSql, categoriesParams);
 

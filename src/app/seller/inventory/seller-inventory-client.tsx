@@ -273,9 +273,23 @@ export default function SellerInventoryClient({
                 filteredProducts.map((p) => {
                   const pkgs = Number(p.stockPackages ?? 0);
                   const isEditing = editingStockId === p.id;
-                  return (
-                    <tr key={p.id} className="hover:bg-surface transition-colors">
-                      <td className="px-4 py-3 font-bold text-brand-deep">{p.name}</td>
+                    const isBlocked = p.status === "blocked" || (p as any).admin_blocked === 1;
+                    return (
+                    <tr
+                      key={p.id}
+                      className={`transition-colors ${
+                        isBlocked ? "bg-red-50/40 hover:bg-red-50/60" : "hover:bg-surface"
+                      }`}
+                    >
+                      <td className="px-4 py-3 font-bold text-brand-deep">
+                        <div>{p.name}</div>
+                        {isBlocked && (
+                          <div className="mt-1 inline-flex items-center gap-1 rounded-md bg-red-100 border border-red-300 px-2 py-0.5 text-[10px] font-bold text-red-800">
+                            <AlertTriangle size={11} className="text-red-600" />
+                            <span>Product blocked. Contact admin.</span>
+                          </div>
+                        )}
+                      </td>
                       <td className="px-3 py-3 text-foreground/60">{p.category}</td>
                       <td className="px-3 py-3 font-bold text-brand-deep">
                         <div>${Number(p.price).toFixed(2)}</div>
@@ -288,9 +302,15 @@ export default function SellerInventoryClient({
                       </td>
                       <td className="px-3 py-3 font-bold text-brand-deep">{pkgs} package(s)</td>
                       <td className="px-3 py-3">
-                        <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-bold ${stockBadge(pkgs)}`}>
-                          {stockLabel(pkgs)}
-                        </span>
+                        {isBlocked ? (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-red-300 bg-red-100 px-2.5 py-0.5 text-[10px] font-bold text-red-700">
+                            🚫 Blocked by Admin
+                          </span>
+                        ) : (
+                          <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-bold ${stockBadge(pkgs)}`}>
+                            {stockLabel(pkgs)}
+                          </span>
+                        )}
                       </td>
                       <td className="px-3 py-3 text-right">
                         {isEditing ? (

@@ -245,3 +245,60 @@ export const CAMEROON_MARKET_CATEGORIES: CameroonMarketCategory[] = [
     keywords: ["crafts", "art", "woodwork", "beads", "masks", "handcrafted", "traditional", "carving"],
   },
 ];
+
+/**
+ * Finds the nearest Cameroon city, quarter, and landmark based on given GPS coordinates.
+ */
+export function findNearestCameroonLocation(lat: number, lng: number): {
+  city: CameroonCity;
+  quarter: CameroonQuarter | null;
+  distanceKm: number;
+  isCloseMatch: boolean; // within 25km of the quarter/city
+} {
+  let nearestCity = CAMEROON_CITIES[0];
+  let nearestQuarter: CameroonQuarter | null = null;
+  let minDistance = Infinity;
+
+  for (const city of CAMEROON_CITIES) {
+    // Check quarters in this city
+    for (const q of city.quarters) {
+      const dist = computeHaversineKm(lat, lng, q.lat, q.lng);
+      if (dist < minDistance) {
+        minDistance = dist;
+        nearestCity = city;
+        nearestQuarter = q;
+      }
+    }
+
+    // Check city center
+    const cityDist = computeHaversineKm(lat, lng, city.lat, city.lng);
+    if (cityDist < minDistance) {
+      minDistance = cityDist;
+      nearestCity = city;
+      // Default to first quarter if any
+      nearestQuarter = city.quarters[0] || null;
+    }
+  }
+
+  return {
+    city: nearestCity,
+    quarter: nearestQuarter,
+    distanceKm: Math.round(minDistance * 100) / 100,
+    isCloseMatch: minDistance <= 35, // within reasonable Cameroon urban radius
+  };
+}
+
+function computeHaversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  if (lat1 === lat2 && lon1 === lon2) return 0;
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}

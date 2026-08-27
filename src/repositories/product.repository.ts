@@ -28,9 +28,11 @@ export interface ProductRow {
   brand?: string | null;
   meta_title?: string | null;
   meta_description?: string | null;
-  status: "active" | "draft" | "archived";
+  status: "active" | "draft" | "archived" | "blocked" | string;
   is_digital: number;
   marketplace_enabled?: number;
+  admin_blocked?: number;
+  admin_block_reason?: string | null;
   created_at?: string;
   store_name?: string;
   store_slug?: string;
@@ -44,6 +46,7 @@ export class ProductRepository {
       id: row.id,
       storeId: row.store_id,
       storeName: row.store_name,
+      storeSlug: row.store_slug,
       name: row.name,
       price: Number(row.price),
       discountPrice: row.discount_price ? Number(row.discount_price) : null,
@@ -57,16 +60,25 @@ export class ProductRepository {
       unitType: (row.unit_type as any) || "pcs",
       unitValue: Number(row.unit_value || 1),
       stockPackages: Number(row.stock_packages || 0),
+      status: row.status || "active",
+      marketplace_enabled: row.marketplace_enabled !== undefined ? Number(row.marketplace_enabled) : 1,
+      admin_blocked: row.admin_blocked !== undefined ? Number(row.admin_blocked) : (row.status === "blocked" ? 1 : 0),
+      admin_block_reason: row.admin_block_reason || null,
     };
   }
-  static async findById(id: number): Promise<ProductRow | null> {
-    const rows = await query<ProductRow[]>(
-      `SELECT p.*, s.name AS store_name, s.slug AS store_slug
-       FROM products p
-       LEFT JOIN stores s ON s.id = p.store_id
-       WHERE p.id = ? LIMIT 1`,
-      [id]
-    );
+  static async findById(id: number, options?: { allowBlocked?: boolean }): Promise<ProductRow | null> {
+    let sql = `
+      SELECT p.*, s.name AS store_name, s.slug AS store_slug
+      FROM products p
+      LEFT JOIN stores s ON s.id = p.store_id
+      WHERE p.id = ?
+    `;
+    const params: any[] = [id];
+    if (!options?.allowBlocked) {
+      sql += " AND p.status != 'blocked' AND (p.admin_blocked IS NULL OR p.admin_blocked = 0)";
+    }
+    sql += " LIMIT 1";
+    const rows = await query<ProductRow[]>(sql, params);
     return rows[0] || null;
   }
 
@@ -76,10 +88,11 @@ export class ProductRepository {
     featured?: boolean;
     search?: string;
     status?: string;
+    include_blocked?: boolean;
     limit?: number;
     offset?: number;
   }): Promise<ProductRow[]> {
-    const { store_id, category, featured, search, status = "active", limit = 50, offset = 0 } = options;
+    const { store_id, category, featured, search, status, include_blocked = false, limit = 50, offset = 0 } = options;
 
     let sql = `
       SELECT p.*, s.name AS store_name, s.slug AS store_slug
@@ -92,9 +105,11 @@ export class ProductRepository {
     if (status) {
       sql += " AND p.status = ?";
       params.push(status);
+    } else if (!include_blocked) {
+      sql += " AND p.status != 'blocked' AND (p.admin_blocked IS NULL OR p.admin_blocked = 0)";
     }
 
-    if (store_id) {
+    if (store_id !== undefined && store_id !== null) {
       sql += " AND p.store_id = ?";
       params.push(store_id);
     }
@@ -114,7 +129,7 @@ export class ProductRepository {
       params.push(term, term, term, term);
     }
 
-    sql += " ORDER BY p.id DESC LIMIT ? OFFSET ?";
+    sql += " ORDER BY p.featured DESC, p.id DESC LIMIT ? OFFSET ?";
     params.push(limit, offset);
 
     return query<ProductRow[]>(sql, params);
@@ -125,8 +140,9 @@ export class ProductRepository {
       `INSERT INTO products (
         store_id, name, price, discount_price, transport_fee, image, image_zoom, description, featured, category,
         package_name, unit_type, unit_value, stock_packages, sku, barcode, videos_json, specifications_json,
-        weight_kg, dimensions_cm, warranty_info, subcategory, tags, brand, meta_title, meta_description, status, is_digital
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        weight_kg, dimensions_cm, warranty_info, subcategory, tags, brand, meta_title, meta_description, status, is_digital,
+        marketplace_enabled, admin_blocked, admin_block_reason
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         data.store_id || 1,
         data.name,
@@ -156,10 +172,13 @@ export class ProductRepository {
         data.meta_description || null,
         data.status || "active",
         data.is_digital ? 1 : 0,
+        data.marketplace_enabled !== undefined ? data.marketplace_enabled : 1,
+        data.admin_blocked !== undefined ? data.admin_blocked : 0,
+        data.admin_block_reason || null,
       ]
     );
 
-    const created = await this.findById(res.insertId);
+    const created = await this.findById(res.insertId, { allowBlocked: true });
     return created!;
   }
 
@@ -180,7 +199,10 @@ export class ProductRepository {
         stock_packages = COALESCE(?, stock_packages),
         sku = COALESCE(?, sku),
         barcode = COALESCE(?, barcode),
-        status = COALESCE(?, status)
+        status = COALESCE(?, status),
+        marketplace_enabled = COALESCE(?, marketplace_enabled),
+        admin_blocked = COALESCE(?, admin_blocked),
+        admin_block_reason = COALESCE(?, admin_block_reason)
        WHERE id = ?`,
       [
         data.name || null,
@@ -198,6 +220,9 @@ export class ProductRepository {
         data.sku || null,
         data.barcode || null,
         data.status || null,
+        data.marketplace_enabled !== undefined ? data.marketplace_enabled : null,
+        data.admin_blocked !== undefined ? data.admin_blocked : null,
+        data.admin_block_reason || null,
         id,
       ]
     );

@@ -247,13 +247,44 @@ async function ensurePackageSchema() {
           name: "stock_packages",
           ddl: "ALTER TABLE products ADD COLUMN stock_packages INT NOT NULL DEFAULT 0",
         },
+        {
+          name: "store_id",
+          ddl: "ALTER TABLE products ADD COLUMN store_id INT NOT NULL DEFAULT 0",
+        },
+        {
+          name: "status",
+          ddl: "ALTER TABLE products ADD COLUMN status VARCHAR(50) NOT NULL DEFAULT 'active'",
+        },
+        {
+          name: "marketplace_enabled",
+          ddl: "ALTER TABLE products ADD COLUMN marketplace_enabled TINYINT(1) NOT NULL DEFAULT 1",
+        },
+        {
+          name: "admin_blocked",
+          ddl: "ALTER TABLE products ADD COLUMN admin_blocked TINYINT(1) NOT NULL DEFAULT 0",
+        },
+        {
+          name: "admin_block_reason",
+          ddl: "ALTER TABLE products ADD COLUMN admin_block_reason VARCHAR(255) NULL",
+        },
       ];
 
       for (const column of productsColumns) {
         const exists = await hasColumn("products", column.name);
         if (!exists) {
-          await pool.execute(column.ddl);
+          try {
+            await pool.execute(column.ddl);
+          } catch {
+            // Non-fatal if column exists
+          }
         }
+      }
+
+      // Ensure status column allows VARCHAR (e.g. 'blocked', 'active', 'draft', 'archived')
+      try {
+        await pool.execute("ALTER TABLE products MODIFY COLUMN status VARCHAR(50) NOT NULL DEFAULT 'active'");
+      } catch {
+        // Non-fatal
       }
 
       const hasLegacyUnit = await hasColumn("products", "unit");
@@ -372,6 +403,10 @@ async function ensurePackageSchema() {
         { name: "latitude", ddl: "ALTER TABLE stores ADD COLUMN latitude DECIMAL(10,8) NULL" },
         { name: "longitude", ddl: "ALTER TABLE stores ADD COLUMN longitude DECIMAL(11,8) NULL" },
         { name: "gps_coordinates", ddl: "ALTER TABLE stores ADD COLUMN gps_coordinates VARCHAR(100) NULL" },
+        { name: "is_location_verified", ddl: "ALTER TABLE stores ADD COLUMN is_location_verified TINYINT(1) NOT NULL DEFAULT 0" },
+        { name: "location_verified_at", ddl: "ALTER TABLE stores ADD COLUMN location_verified_at TIMESTAMP NULL" },
+        { name: "location_accuracy_meters", ddl: "ALTER TABLE stores ADD COLUMN location_accuracy_meters INT NULL" },
+        { name: "location_verification_method", ddl: "ALTER TABLE stores ADD COLUMN location_verification_method VARCHAR(50) NULL" },
       ];
 
       for (const col of storeColumns) {
@@ -384,6 +419,21 @@ async function ensurePackageSchema() {
           }
         }
       }
+
+      await pool.execute(
+        `CREATE TABLE IF NOT EXISTS user_store_visits (
+          id BIGINT AUTO_INCREMENT PRIMARY KEY,
+          user_id BIGINT NULL,
+          store_id BIGINT NOT NULL,
+          ip_address VARCHAR(45) NULL,
+          user_agent VARCHAR(255) NULL,
+          visit_count INT NOT NULL DEFAULT 1,
+          last_visited_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          INDEX idx_user_visits (user_id, last_visited_at),
+          INDEX idx_store_visits (store_id, last_visited_at)
+        )`
+      );
 
       const storeAppColumns = [
         { name: "application_fee_cfa", ddl: "ALTER TABLE store_applications ADD COLUMN application_fee_cfa INT NOT NULL DEFAULT 5000" },

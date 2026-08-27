@@ -69,6 +69,10 @@ export interface Store {
   latitude?: number | null;
   longitude?: number | null;
   gps_coordinates?: string | null;
+  is_location_verified?: boolean | number;
+  location_verified_at?: string | null;
+  location_accuracy_meters?: number | null;
+  location_verification_method?: string | null;
   business_hours_json?: string | null;
   website?: string | null;
   facebook?: string | null;
@@ -85,6 +89,12 @@ export interface Store {
   products_sold_count: number;
   created_at?: string;
   updated_at?: string;
+}
+
+export interface VisitedStore {
+  store: Store;
+  visit_count: number;
+  last_visited_at: string;
 }
 
 export interface StoreUser {
