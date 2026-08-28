@@ -94,36 +94,37 @@ function HeaderActionsInner() {
           {isAdmin ? (
             <Link
               href="/admin"
-              className="hidden rounded-full border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-slate-700 md:inline-flex"
+              className="inline-flex rounded-full border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-slate-700"
             >
               {t("header_admin_portal")}
             </Link>
           ) : (session?.user as { storeIds?: number[] })?.storeIds?.length ? (
             <Link
               href="/seller/dashboard"
-              className="hidden rounded-full border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-sm font-bold text-emerald-400 transition-colors hover:bg-emerald-500/20 md:inline-flex"
+              className="inline-flex rounded-full border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-sm font-bold text-emerald-400 transition-colors hover:bg-emerald-500/20"
             >
               {t("header_store_portal")}
             </Link>
           ) : (session?.user as { referredStoreSlug?: string })?.referredStoreSlug ? (
             <Link
               href={`/store/${(session.user as { referredStoreSlug?: string }).referredStoreSlug}`}
-              className="hidden rounded-full border border-sky-500/40 bg-sky-500/10 px-4 py-2 text-sm font-bold text-sky-300 transition-colors hover:bg-sky-500/20 md:inline-flex"
+              className="inline-flex rounded-full border border-sky-500/40 bg-sky-500/10 px-4 py-2 text-sm font-bold text-sky-300 transition-colors hover:bg-sky-500/20"
             >
               {t("header_my_preferred_store")}
             </Link>
           ) : (
             <Link
               href="/dashboard"
-              className="hidden rounded-full border border-white/30 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/10 md:inline-flex"
+              className="inline-flex rounded-full border border-white/30 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/10"
             >
               {t("header_dashboard")}
             </Link>
           )}
+          {/* Sign Out — desktop only; mobile uses the hamburger menu */}
           <button
             type="button"
             onClick={() => signOut({ callbackUrl: "/" })}
-            className="rounded-full bg-brand px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-deep"
+            className="hidden md:inline-flex rounded-full bg-brand px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-deep"
           >
             {t("header_sign_out")}
           </button>

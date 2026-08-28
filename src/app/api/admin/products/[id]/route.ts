@@ -52,7 +52,7 @@ export async function PUT(request: Request, { params }: Params) {
 
     const result = await query<DbResult>(
       `UPDATE products
-       SET name = ?, price = ?, transport_fee = ?, image = ?, image_zoom = ?, description = ?, featured = ?, category = ?, package_name = ?, unit_type = ?, unit_value = ?, stock_packages = ?
+       SET name = ?, price = ?, transport_fee = ?, image = ?, image_zoom = ?, gallery_images = ?, description = ?, featured = ?, category = ?, package_name = ?, unit_type = ?, unit_value = ?, stock_packages = ?
        WHERE id = ?`,
       [
         parsed.data.name,
@@ -60,6 +60,7 @@ export async function PUT(request: Request, { params }: Params) {
         parsed.data.transportFee,
         parsed.data.image,
         parsed.data.imageZoom,
+        JSON.stringify(parsed.data.galleryImages ?? []),
         parsed.data.description,
         parsed.data.featured,
         category,

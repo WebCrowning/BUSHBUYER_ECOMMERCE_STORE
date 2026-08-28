@@ -1,6 +1,8 @@
 import type { MetadataRoute } from "next";
 
 export default function robots(): MetadataRoute.Robots {
+  const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://bushbuyer.com").replace(/\/$/, "");
+
   return {
     rules: [
       {
@@ -8,28 +10,37 @@ export default function robots(): MetadataRoute.Robots {
         allow: "/",
         disallow: [
           "/admin",
+          "/admin/*",
           "/admin-login",
-          "/api",
-          "/auth",
+          "/admin-login/*",
+          "/seller",
+          "/seller/*",
           "/dashboard",
+          "/dashboard/*",
+          "/api",
+          "/api/*",
+          "/auth",
+          "/auth/*",
           "/signin",
+          "/signin/*",
           "/cart",
+          "/cart/*",
           "/checkout",
+          "/checkout/*",
           "/orders",
+          "/orders/*",
           "/chat",
+          "/chat/*",
           "/notifications",
+          "/notifications/*",
           "/*.json$",
         ],
       },
       {
-        userAgent: ["MJ12bot", "AhrefsBot", "SemrushBot"],
+        userAgent: ["MJ12bot", "AhrefsBot", "SemrushBot", "DotBot"],
         crawlDelay: 10,
       },
     ],
-    sitemap: [
-      "https://bushbuyer.com/sitemap.xml",
-      "https://bushbuyer.com/sitemap-categories/route.xml",
-      "https://bushbuyer.com/sitemap-products/route.xml",
-    ],
+    sitemap: `${baseUrl}/sitemap.xml`,
   };
 }

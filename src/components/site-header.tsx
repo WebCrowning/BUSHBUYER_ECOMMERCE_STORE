@@ -6,7 +6,9 @@ import Link from "next/link";
 import { HeaderActions } from "@/components/header-actions";
 import { LanguageToggle } from "@/components/language-toggle";
 import { useTranslation } from "@/hooks/use-translation";
-import { ChevronDown, Menu, X } from "lucide-react";
+import { ChevronDown, LogOut, Menu, X } from "lucide-react";
+import { SessionProvider, signOut, useSession } from "next-auth/react";
+
 
 export function SiteHeader() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -144,6 +146,11 @@ export function SiteHeader() {
               <div className="mt-1">
                 <LanguageToggle />
               </div>
+
+              {/* Sign Out — mobile only */}
+              <SessionProvider>
+                <MobileSignOut onClose={() => setMobileMenuOpen(false)} />
+              </SessionProvider>
             </div>
           </nav>
         )}
@@ -151,3 +158,25 @@ export function SiteHeader() {
     </>
   );
 }
+
+function MobileSignOut({ onClose }: { onClose: () => void }) {
+  const { data: session, status } = useSession();
+  const { t } = useTranslation();
+
+  if (status === "loading" || !session?.user) return null;
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        onClose();
+        void signOut({ callbackUrl: "/" });
+      }}
+      className="mt-1 w-full max-w-sm inline-flex items-center justify-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm font-semibold text-red-400 transition-colors hover:bg-red-500/20"
+    >
+      <LogOut size={16} />
+      {t("header_sign_out")}
+    </button>
+  );
+}
+

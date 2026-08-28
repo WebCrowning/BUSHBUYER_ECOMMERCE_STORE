@@ -267,6 +267,10 @@ async function ensurePackageSchema() {
           name: "admin_block_reason",
           ddl: "ALTER TABLE products ADD COLUMN admin_block_reason VARCHAR(255) NULL",
         },
+        {
+          name: "gallery_images",
+          ddl: "ALTER TABLE products ADD COLUMN gallery_images TEXT NULL",
+        },
       ];
 
       for (const column of productsColumns) {

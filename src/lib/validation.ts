@@ -21,6 +21,9 @@ export const productSchema = z
     unitValue: z.number().positive(),
     stockPackages: z.number().int().min(0).default(0),
     imageZoom: z.number().int().min(80).max(180).default(100),
+    galleryImages: z.array(
+      z.string().trim().min(1).max(2048).refine((v) => !/^javascript:/i.test(v), { message: "Invalid image URL" })
+    ).max(8).optional().default([]),
   });
 
 export const orderItemSchema = z.object({

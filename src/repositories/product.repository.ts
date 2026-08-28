@@ -20,6 +20,7 @@ export interface ProductRow {
   barcode?: string | null;
   videos_json?: string | null;
   specifications_json?: string | null;
+  gallery_images?: string | null;
   weight_kg: number;
   dimensions_cm?: string | null;
   warranty_info?: string | null;
@@ -64,6 +65,10 @@ export class ProductRepository {
       marketplace_enabled: row.marketplace_enabled !== undefined ? Number(row.marketplace_enabled) : 1,
       admin_blocked: row.admin_blocked !== undefined ? Number(row.admin_blocked) : (row.status === "blocked" ? 1 : 0),
       admin_block_reason: row.admin_block_reason || null,
+      galleryImages: (() => {
+        if (!row.gallery_images) return [];
+        try { return JSON.parse(row.gallery_images) as string[]; } catch { return []; }
+      })(),
     };
   }
   static async findById(id: number, options?: { allowBlocked?: boolean }): Promise<ProductRow | null> {

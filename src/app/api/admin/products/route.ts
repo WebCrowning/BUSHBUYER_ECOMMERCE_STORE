@@ -23,6 +23,7 @@ export async function GET(request: Request) {
     let sql = `
       SELECT p.id, p.store_id AS storeId, p.name, p.price, p.discount_price AS discountPrice,
              p.transport_fee AS transportFee, p.image, p.image_zoom AS imageZoom,
+             p.gallery_images AS galleryImages,
              p.description, p.featured, p.category,
              p.package_name AS packageName, p.unit_type AS unitType, p.unit_value AS unitValue,
              p.stock_packages AS stockPackages, p.status, p.marketplace_enabled,
@@ -98,8 +99,8 @@ export async function POST(request: Request) {
     const category = normalizeCategory(parsed.data.category);
 
     await query(
-      `INSERT INTO products (store_id, name, price, transport_fee, image, image_zoom, description, featured, category, package_name, unit_type, unit_value, stock_packages)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO products (store_id, name, price, transport_fee, image, image_zoom, gallery_images, description, featured, category, package_name, unit_type, unit_value, stock_packages)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         storeId,
         parsed.data.name,
@@ -107,6 +108,7 @@ export async function POST(request: Request) {
         parsed.data.transportFee,
         parsed.data.image,
         parsed.data.imageZoom,
+        JSON.stringify(parsed.data.galleryImages ?? []),
         parsed.data.description,
         parsed.data.featured,
         category,

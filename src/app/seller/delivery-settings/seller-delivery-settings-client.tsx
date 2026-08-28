@@ -129,9 +129,9 @@ export default function SellerDeliverySettingsClient({ store }: { store: Store }
         <div className="py-12 text-center text-foreground/60 text-xs font-medium">Loading store delivery methods...</div>
       ) : (
         <div className="space-y-5">
-          {methods.map((method) => (
+          {methods.map((method, idx) => (
             <div
-              key={method.delivery_method_id}
+              key={method.delivery_method_id || method.code || `delivery-method-${idx}`}
               className="rounded-2xl border border-border bg-white p-6 shadow-sm space-y-4"
             >
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-border">

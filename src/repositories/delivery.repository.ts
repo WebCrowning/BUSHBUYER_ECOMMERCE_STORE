@@ -27,7 +27,7 @@ export class DeliveryRepository {
       `SELECT
         sdm.id,
         sdm.store_id,
-        sdm.delivery_method_id,
+        dm.id AS delivery_method_id,
         sdm.enabled,
         sdm.is_default,
         sdm.configuration,
@@ -46,7 +46,7 @@ export class DeliveryRepository {
     return rows.map((r) => ({
       id: r.id || 0,
       store_id: storeId,
-      delivery_method_id: r.delivery_method_id || r.id,
+      delivery_method_id: Number(r.delivery_method_id),
       enabled: Boolean(r.enabled),
       is_default: Boolean(r.is_default),
       configuration: r.configuration ? (typeof r.configuration === "string" ? JSON.parse(r.configuration) : r.configuration) : {},

@@ -1,11 +1,23 @@
 import { NextResponse } from "next/server";
 import { CAMEROON_CITIES, findNearestCameroonLocation } from "@/lib/cameroon-locations";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { getClientIp } from "@/lib/request-security";
 
 export async function GET(request: Request) {
+  const clientIp = getClientIp(request);
+  const rl = checkRateLimit({ key: `geocode:${clientIp}`, windowMs: 60_000, maxRequests: 45 });
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many geocoding requests. Please wait a moment." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSeconds) } }
+    );
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const latStr = searchParams.get("lat");
     const lngStr = searchParams.get("lng");
+
 
     if (!latStr || !lngStr) {
       return NextResponse.json({ error: "Missing lat or lng query parameters" }, { status: 400 });

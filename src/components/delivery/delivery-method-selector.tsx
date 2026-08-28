@@ -126,12 +126,12 @@ export function DeliveryMethodSelector({ storeId, cartSubtotal, onChange }: Deli
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {methods.map((method) => {
+        {methods.map((method, idx) => {
           const isSelected = method.delivery_method_id === selectedMethodId;
           const fee = calculateFee(method);
           return (
             <label
-              key={method.delivery_method_id}
+              key={method.delivery_method_id || method.code || `selector-method-${idx}`}
               onClick={() => setSelectedMethodId(method.delivery_method_id)}
               className={`p-4 rounded-2xl border-2 flex items-start gap-3 cursor-pointer transition-all ${
                 isSelected

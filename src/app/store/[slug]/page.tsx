@@ -191,17 +191,28 @@ export default async function StoreProfilePage({ params }: { params: Promise<{ s
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {products.map((product) => (
-                  <FeaturedProductCard
-                    key={product.id}
-                    id={product.id}
-                    name={product.name}
-                    price={product.price}
-                    image={product.image}
-                    category={product.category}
-                    shortNote={product.description?.substring(0, 80) || "Authentic quality product"}
-                  />
-                ))}
+                {products.map((product) => {
+                  let galleryImages: string[] = [];
+                  try {
+                    if (product.gallery_images) {
+                      const parsed = JSON.parse(product.gallery_images);
+                      if (Array.isArray(parsed)) galleryImages = parsed;
+                    }
+                  } catch { /* non-fatal */ }
+
+                  return (
+                    <FeaturedProductCard
+                      key={product.id}
+                      id={product.id}
+                      name={product.name}
+                      price={product.price}
+                      image={product.image}
+                      galleryImages={galleryImages}
+                      category={product.category}
+                      shortNote={product.description?.substring(0, 80) || "Authentic quality product"}
+                    />
+                  );
+                })}
               </div>
             )}
           </div>

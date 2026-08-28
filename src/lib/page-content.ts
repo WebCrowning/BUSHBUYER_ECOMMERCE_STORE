@@ -1,3 +1,5 @@
+import sanitizeHtml from "sanitize-html";
+
 export const pageSlugs = ["about", "privacy"] as const;
 
 export type PageSlug = (typeof pageSlugs)[number];
@@ -9,6 +11,23 @@ export function isPageSlug(value: string): value is PageSlug {
 export function pageTitleFromSlug(slug: PageSlug): string {
   return slug === "about" ? "About Us" : "Privacy Policy";
 }
+
+export function sanitizePageContent(rawHtml: string): string {
+  if (!rawHtml) return "";
+  return sanitizeHtml(rawHtml, {
+    allowedTags: [
+      "h1", "h2", "h3", "h4", "h5", "h6",
+      "p", "a", "ul", "ol", "li", "b", "i", "strong", "em", "strike", "code", "hr", "br",
+      "div", "span", "blockquote", "table", "thead", "tbody", "tr", "th", "td"
+    ],
+    allowedAttributes: {
+      a: ["href", "name", "target", "rel"],
+      "*": ["class"]
+    },
+    allowedSchemes: ["http", "https", "mailto", "tel"],
+  });
+}
+
 
 export function defaultPageContent(slug: PageSlug): string {
   if (slug === "about") {

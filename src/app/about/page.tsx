@@ -4,7 +4,7 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { AboutClientContent } from "@/components/about-client-content";
 import { query } from "@/lib/db";
-import { defaultPageContent } from "@/lib/page-content";
+import { defaultPageContent, sanitizePageContent } from "@/lib/page-content";
 
 export const metadata: Metadata = {
   title: "About Us | Bushbuyer",
@@ -32,7 +32,9 @@ export default async function AboutPage() {
   }
 
   const pageTitle = rows[0]?.title || "About Us";
-  const contentHtml = rows[0]?.content_html || defaultPageContent("about");
+  const rawHtml = rows[0]?.content_html || defaultPageContent("about");
+  const contentHtml = sanitizePageContent(rawHtml);
+
 
   return (
     <div className="min-h-screen">

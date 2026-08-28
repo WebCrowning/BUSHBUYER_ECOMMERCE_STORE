@@ -13,6 +13,7 @@ import { StoreAttributor } from "@/components/store-attributor";
 import { ProductPriceDisplay } from "@/components/product-price-display";
 import { StoreLocationCard } from "@/components/store/store-location-card";
 import { StoreRepository } from "@/repositories/store.repository";
+import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,51 @@ type Props = {
   params: Promise<{ id: string }>;
 };
 
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { id } = await params;
+  const productId = toId(id);
+  if (!productId) return { title: "Product Not Found | Bushbuyer" };
+
+  try {
+    const rows = await query<Product[]>(
+      "SELECT id, name, price, description, image, category FROM products WHERE id = ? LIMIT 1",
+      [productId]
+    );
+    const product = rows[0];
+    if (!product) return { title: "Product Not Found | Bushbuyer" };
+
+    const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://bushbuyer.com").replace(/\/$/, "");
+    const title = `${product.name} | Bushbuyer Marketplace`;
+    const description = product.description
+      ? product.description.slice(0, 160)
+      : `Buy authentic ${product.name} on Bushbuyer Marketplace. Direct from trusted African suppliers.`;
+
+    return {
+      title,
+      description,
+      alternates: {
+        canonical: `${baseUrl}/products/${product.id}`,
+      },
+      openGraph: {
+        title,
+        description,
+        url: `${baseUrl}/products/${product.id}`,
+        images: product.image ? [{ url: product.image, alt: product.name }] : undefined,
+      },
+      twitter: {
+        card: "summary_large_image",
+        title,
+        description,
+        images: product.image ? [product.image] : undefined,
+      },
+    };
+  } catch {
+    return { title: "Product Details | Bushbuyer" };
+  }
+}
+
 export default async function ProductDetailsPage({ params }: Props) {
+
   const { id } = await params;
   const productId = toId(id);
 

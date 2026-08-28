@@ -3,7 +3,7 @@ import Link from "next/link";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { query } from "@/lib/db";
-import { defaultPageContent } from "@/lib/page-content";
+import { defaultPageContent, sanitizePageContent } from "@/lib/page-content";
 
 export const metadata: Metadata = {
   title: "Privacy Policy | Bushbuyer",
@@ -32,7 +32,9 @@ export default async function PrivacyPage() {
   }
 
   const pageTitle = rows[0]?.title || "Privacy Policy";
-  const contentHtml = rows[0]?.content_html || defaultPageContent("privacy");
+  const rawHtml = rows[0]?.content_html || defaultPageContent("privacy");
+  const contentHtml = sanitizePageContent(rawHtml);
+
 
   return (
     <div className="min-h-screen">

@@ -14,6 +14,7 @@ type ProductForm = {
   transportFee: string;
   image: string;
   imageZoom: string;
+  galleryImages: string[];
   description: string;
   featured: "0" | "1";
   category: string;
@@ -29,6 +30,7 @@ const defaultForm: ProductForm = {
   transportFee: "0",
   image: "",
   imageZoom: "100",
+  galleryImages: [],
   description: "",
   featured: "0",
   category: "General",
@@ -67,6 +69,7 @@ export default function SellerProductsClient({
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadingGallery, setUploadingGallery] = useState(false);
   const [selectedUploadName, setSelectedUploadName] = useState("");
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const [showImageLibrary, setShowImageLibrary] = useState(false);
@@ -170,6 +173,7 @@ export default function SellerProductsClient({
         transportFee: Number(form.transportFee),
         image: form.image,
         imageZoom: Number(form.imageZoom),
+        galleryImages: form.galleryImages,
         description: form.description,
         featured: Number(form.featured),
         category: normalizedCat,
@@ -444,6 +448,76 @@ export default function SellerProductsClient({
             </div>
           </div>
 
+          {/* Product Gallery — multiple images */}
+          <div className="md:col-span-2">
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-xs font-bold uppercase tracking-wide text-foreground/60">
+                📸 Product Gallery
+                <span className="ml-2 text-[10px] normal-case font-normal text-foreground/40">({form.galleryImages.length}/8 — these auto-rotate on store cards)</span>
+              </label>
+              <label className={`cursor-pointer rounded-xl ${
+                form.galleryImages.length >= 8 ? "opacity-40 cursor-not-allowed" : "hover:bg-emerald-100"
+              } bg-emerald-50 border border-emerald-200 px-3 py-1.5 text-xs font-bold text-emerald-700 transition-colors flex items-center gap-1.5`}>
+                {uploadingGallery ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
+                <span>{uploadingGallery ? "Uploading..." : "Add Photo"}</span>
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  className="hidden"
+                  disabled={uploadingGallery || form.galleryImages.length >= 8}
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file || form.galleryImages.length >= 8) return;
+                    setUploadingGallery(true);
+                    const fd = new FormData();
+                    fd.append("file", file);
+                    try {
+                      const res = await fetch("/api/admin/upload?type=seller", { method: "POST", body: fd });
+                      const payload = await res.json();
+                      if (res.ok && payload?.imageUrl) {
+                        setForm((v) => ({ ...v, galleryImages: [...v.galleryImages, String(payload.imageUrl)] }));
+                      } else {
+                        setStatus(payload?.error ?? "Gallery upload failed.");
+                      }
+                    } catch {
+                      setStatus("Gallery upload failed. Please try again.");
+                    } finally {
+                      setUploadingGallery(false);
+                    }
+                  }}
+                />
+              </label>
+            </div>
+
+            {form.galleryImages.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-border bg-surface p-4 text-center text-xs text-foreground/40">
+                <ImageIcon size={20} className="mx-auto mb-1.5 text-foreground/20" />
+                No gallery images yet. Add up to 8 extra photos for buyers to see all angles.
+              </div>
+            ) : (
+              <div className="grid grid-cols-4 gap-2">
+                {form.galleryImages.map((url, idx) => (
+                  <div key={idx} className="group relative aspect-square rounded-xl overflow-hidden border border-border bg-surface">
+                    <img src={url} alt={`Gallery ${idx + 1}`} className="h-full w-full object-cover" />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
+                      <button
+                        type="button"
+                        onClick={() => setForm((v) => ({ ...v, galleryImages: v.galleryImages.filter((_, i) => i !== idx) }))}
+                        className="opacity-0 group-hover:opacity-100 rounded-full bg-red-600 p-1.5 text-white shadow-lg transition-opacity"
+                        title="Remove image"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                    <span className="absolute bottom-1 left-1.5 text-[9px] font-bold text-white/90 bg-black/50 px-1 py-0.5 rounded">
+                      {idx + 1}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div className="md:col-span-2">
             <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-foreground/60">Description</label>
             <textarea
@@ -617,6 +691,7 @@ export default function SellerProductsClient({
                                 transportFee: String(p.transportFee ?? 0),
                                 image: p.image || "",
                                 imageZoom: String(p.imageZoom ?? 100),
+                                galleryImages: Array.isArray(p.galleryImages) ? p.galleryImages : [],
                                 description: p.description || "",
                                 featured: p.featured ? "1" : "0",
                                 category: p.category || "General",

@@ -11,6 +11,7 @@ export type Product = {
   transportFee: number;
   image: string;
   imageZoom?: number;
+  galleryImages?: string[];
   description: string;
   featured: number;
   category: string;

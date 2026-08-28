@@ -55,8 +55,9 @@ export async function PATCH(_request: Request, { params }: Params) {
 
     await query(
       "UPDATE orders SET received_confirmed_at = NOW() WHERE id = ? AND user_id = ?",
-      [orderId, Number(session.user.id)],
+      [order.id, Number(session.user.id)],
     );
+
 
     await createAdminNotification({
       type: "order",

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { PaymentService } from "@/services/payment.service";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { getClientIp } from "@/lib/request-security";
 
 /**
  * GET /api/payments/fapshi/verify?transId=...
@@ -7,6 +9,15 @@ import { PaymentService } from "@/services/payment.service";
  * Called from the /checkout/fapshi-success page after redirect.
  */
 export async function GET(request: Request) {
+  const clientIp = getClientIp(request);
+  const rl = checkRateLimit({ key: `fapshi-verify:${clientIp}`, windowMs: 60_000, maxRequests: 30 });
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many verification requests. Please wait a moment." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSeconds) } }
+    );
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const transId = searchParams.get("transId");
@@ -14,6 +25,7 @@ export async function GET(request: Request) {
     if (!transId) {
       return NextResponse.json({ error: "transId is required" }, { status: 400 });
     }
+
 
     const status = await PaymentService.verifyFapshiTransaction(transId);
 
