@@ -57,7 +57,7 @@ export default async function FAQPage() {
   const categories = Object.keys(grouped).sort((a, b) => a.localeCompare(b));
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50">
+    <div className="min-h-screen bg-white">
       <SiteHeader />
       <FAQClientContent faqs={faqs} grouped={grouped} categories={categories} />
       <SiteFooter />
