@@ -6,7 +6,7 @@ import Link from "next/link";
 import { HeaderActions } from "@/components/header-actions";
 import { LanguageToggle } from "@/components/language-toggle";
 import { useTranslation } from "@/hooks/use-translation";
-import { ChevronDown, LogOut, Menu, X } from "lucide-react";
+import { ChevronDown, LogOut, Menu, X, Store } from "lucide-react";
 import { SessionProvider, signOut, useSession } from "next-auth/react";
 
 
@@ -70,7 +70,15 @@ export function SiteHeader() {
                   />
                 </span>
               </summary>
-              <div className="absolute right-0 top-8 z-40 w-44 rounded-xl border border-slate-700 bg-slate-900 p-2 shadow-xl">
+              <div className="absolute right-0 top-8 z-40 w-48 rounded-xl border border-slate-700 bg-slate-900 p-2 shadow-xl space-y-1">
+                <Link
+                  href="/store/apply"
+                  className="flex items-center gap-2 rounded-lg bg-emerald-500/20 border border-emerald-500/40 px-3 py-2 text-sm font-bold text-emerald-400 transition-colors hover:bg-emerald-500/30"
+                >
+                  <Store size={15} className="shrink-0 text-emerald-400" />
+                  <span>{t("nav_create_store")}</span>
+                </Link>
+                <div className="h-px bg-slate-800 my-1" />
                 {infoNavItems.map((item) => (
                   <Link
                     key={item.href}
@@ -129,6 +137,14 @@ export function SiteHeader() {
                   </span>
                 </summary>
                 <div className="flex flex-col gap-1 px-2 pb-2">
+                  <Link
+                    href="/store/apply"
+                    className="flex items-center justify-center gap-2 rounded-lg bg-emerald-500/20 border border-emerald-500/40 px-3 py-2 text-center text-sm font-bold text-emerald-400 transition-colors hover:bg-emerald-500/30 my-1"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <Store size={16} />
+                    {t("nav_create_store")}
+                  </Link>
                   {infoNavItems.map((item) => (
                     <Link
                       key={item.href}
