@@ -62,6 +62,19 @@ export async function PATCH(
         return NextResponse.json({ error: "Application is already approved" }, { status: 400 });
       }
 
+      // Prevent approving stores that haven't paid the registration fee unless admin explicitly waives it
+      const { waiveFee } = body;
+      const paymentStatus = (app as any).payment_status;
+      if (paymentStatus !== "paid" && !waiveFee) {
+        return NextResponse.json(
+          {
+            error: "Registration fee has not been paid yet. The vendor must complete Mobile Money payment before store approval (or you must explicitly waive the fee).",
+            requiresFeeWaiver: true,
+          },
+          { status: 400 }
+        );
+      }
+
       // Generate a unique slug
       let baseSlug = slugify(app.store_name) || `store-${appId}`;
       let finalSlug = baseSlug;

@@ -77,8 +77,17 @@ export default function AdminStoreApplicationsPage() {
   }, []);
 
   const handleApprove = async (app: StoreApplicationItem) => {
-    if (!confirm(`Are you sure you want to approve '${app.store_name}' and grant store access to ${app.user_name}?`)) {
-      return;
+    let waiveFee = false;
+    if (app.payment_status !== "paid") {
+      const confirmWaive = confirm(
+        `⚠️ WARNING: '${app.store_name}' has NOT paid the registration fee yet (Status: Unpaid).\n\nDo you want to waive the fee and approve the store anyway?`
+      );
+      if (!confirmWaive) return;
+      waiveFee = true;
+    } else {
+      if (!confirm(`Are you sure you want to approve '${app.store_name}' and grant store access to ${app.user_name}?`)) {
+        return;
+      }
     }
 
     setProcessing(true);
@@ -89,7 +98,7 @@ export default function AdminStoreApplicationsPage() {
       const res = await fetch(`/api/admin/store-applications/${app.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "approve" }),
+        body: JSON.stringify({ action: "approve", waiveFee }),
       });
 
       const data = await res.json();

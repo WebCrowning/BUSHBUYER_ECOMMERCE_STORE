@@ -7,7 +7,7 @@ export const paymentConfig = {
     webhookId: process.env.PAYPAL_WEBHOOK_ID ?? "",
   },
   fapshi: {
-    baseUrl: process.env.FAPSHI_BASE_URL ?? "https://sandbox.fapshi.com",
+    baseUrl: process.env.FAPSHI_BASE_URL ?? "https://live.fapshi.com",
     apiUser: process.env.FAPSHI_API_USER ?? "",
     apiKey: process.env.FAPSHI_API_KEY ?? "",
     webhookSecret: process.env.FAPSHI_WEBHOOK_SECRET ?? "",

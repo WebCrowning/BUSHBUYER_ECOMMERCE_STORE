@@ -23,6 +23,7 @@ import {
   ShieldCheck,
   Zap,
   AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
 import { CAMEROON_MARKET_CATEGORIES } from "@/lib/cameroon-locations";
 
@@ -64,6 +65,7 @@ export default function ApplyStorePage() {
 
   const [submitting, setSubmitting] = useState(false);
   const [payingAppId, setPayingAppId] = useState<number | null>(null);
+  const [verifyingAppId, setVerifyingAppId] = useState<number | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
   const [showFormOverride, setShowFormOverride] = useState(false);
@@ -112,6 +114,96 @@ export default function ApplyStorePage() {
     }
   }, [authStatus]);
 
+  // Auto-verify transaction if user returned from Fapshi payment portal
+  useEffect(() => {
+    if (typeof window === "undefined" || authStatus !== "authenticated") return;
+    const params = new URLSearchParams(window.location.search);
+    const appIdParam = params.get("appId") || params.get("applicationId");
+    const transIdParam =
+      params.get("transId") ||
+      params.get("trans_id") ||
+      sessionStorage.getItem("fapshi_store_trans_id") ||
+      "";
+
+    if (appIdParam) {
+      verifyPaymentStatus(Number(appIdParam), transIdParam);
+    }
+  }, [authStatus]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const verifyPaymentStatus = async (appId: number, transId?: string) => {
+    try {
+      setVerifyingAppId(appId);
+      setErrorMsg("");
+
+      const q = new URLSearchParams({ appId: String(appId) });
+      if (transId) q.set("transId", transId);
+
+      const res = await fetch(`/api/store-applications/verify-payment?${q.toString()}`);
+      const data = await res.json();
+
+      if (data.verified && data.payment_status === "paid") {
+        setSuccessMsg(
+          `🎉 Payment Confirmed! Your ${registrationFee.toLocaleString()} CFA registration fee was received via Fapshi Mobile Money. Your store application is now under admin review!`
+        );
+        if (typeof window !== "undefined") {
+          sessionStorage.removeItem("fapshi_store_trans_id");
+          const cleanUrl = window.location.pathname;
+          window.history.replaceState({}, document.title, cleanUrl);
+        }
+        await loadApplications();
+      } else if (data.payment_status === "pending") {
+        setErrorMsg(
+          data.message ||
+            "Payment prompt has been initiated. If you completed authorization on your phone, wait a moment and click 'Check Payment Status'."
+        );
+      } else if (data.payment_status === "failed") {
+        setErrorMsg(data.message || "Payment was not completed. Please try paying again.");
+        await loadApplications();
+      }
+    } catch (err: any) {
+      console.error("Payment verification error:", err);
+    } finally {
+      setVerifyingAppId(null);
+    }
+  };
+
+  const handlePayFee = async (appId: number) => {
+    try {
+      setPayingAppId(appId);
+      setErrorMsg("");
+      setSuccessMsg("");
+
+      const res = await fetch("/api/store-applications/pay", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ applicationId: appId }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to initiate payment gateway");
+      }
+
+      if (data.paymentUrl) {
+        if (typeof window !== "undefined" && data.transId) {
+          sessionStorage.setItem("fapshi_store_trans_id", data.transId);
+        }
+        // Redirect user to real Fapshi hosted checkout page
+        window.location.href = data.paymentUrl;
+        return;
+      }
+
+      if (data.payment_status === "paid") {
+        setSuccessMsg("Registration fee is already paid. Your application is under admin review.");
+        await loadApplications();
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || "Payment initiation failed. Please try again.");
+    } finally {
+      setPayingAppId(null);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg("");
@@ -148,50 +240,24 @@ export default function ApplyStorePage() {
         return;
       }
 
-      setSuccessMsg(
-        `Application created! You must now pay the ${registrationFee.toLocaleString()} CFA one-time registration fee below to complete your submission.`
-      );
       setStoreName("");
       setProductsDesc("");
       setNotes("");
       setShowFormOverride(false);
       await loadApplications();
+
+      // Directly launch real payment gateway for the newly created application
+      if (data.id) {
+        await handlePayFee(data.id);
+      } else {
+        setSuccessMsg(
+          `Application submitted! Please complete the registration fee payment below.`
+        );
+      }
     } catch {
       setErrorMsg("An unexpected error occurred. Please try again.");
     } finally {
       setSubmitting(false);
-    }
-  };
-
-  const handlePayFee = async (appId: number) => {
-    try {
-      setPayingAppId(appId);
-      setErrorMsg("");
-
-      const res = await fetch("/api/store-applications/pay", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ applicationId: appId, directConfirm: true }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to process payment");
-      }
-
-      if (data.paymentUrl) {
-        window.location.href = data.paymentUrl;
-        return;
-      }
-
-      setSuccessMsg(
-        `Registration Fee of ${registrationFee.toLocaleString()} CFA paid successfully! Your application is now under admin review.`
-      );
-      await loadApplications();
-    } catch (err: any) {
-      setErrorMsg(err.message || "Payment failed. Please try again.");
-    } finally {
-      setPayingAppId(null);
     }
   };
 
@@ -383,25 +449,46 @@ export default function ApplyStorePage() {
                               fee is paid. Please complete payment to activate your submission.
                             </p>
 
-                            <button
-                              type="button"
-                              id="pay-registration-fee-btn"
-                              onClick={() => handlePayFee(pendingApp.id)}
-                              disabled={payingAppId === pendingApp.id}
-                              className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-extrabold text-sm py-3.5 shadow-md shadow-red-800/30 transition-all active:scale-95 disabled:opacity-50"
-                            >
-                              {payingAppId === pendingApp.id ? (
-                                <>
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                  Processing Payment...
-                                </>
-                              ) : (
-                                <>
-                                  <CreditCard className="w-4 h-4" />
-                                  Pay {getAppFee(pendingApp).toLocaleString()} CFA Registration Fee Now
-                                </>
-                              )}
-                            </button>
+                            <div className="flex flex-col sm:flex-row items-center gap-3">
+                              <button
+                                type="button"
+                                id="pay-registration-fee-btn"
+                                onClick={() => handlePayFee(pendingApp.id)}
+                                disabled={payingAppId === pendingApp.id || verifyingAppId === pendingApp.id}
+                                className="w-full sm:flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-extrabold text-sm py-3.5 shadow-md shadow-red-800/30 transition-all active:scale-95 disabled:opacity-50"
+                              >
+                                {payingAppId === pendingApp.id ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    Connecting to Fapshi...
+                                  </>
+                                ) : (
+                                  <>
+                                    <CreditCard className="w-4 h-4" />
+                                    Pay {getAppFee(pendingApp).toLocaleString()} CFA via Mobile Money
+                                  </>
+                                )}
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => verifyPaymentStatus(pendingApp.id, pendingApp.payment_reference || undefined)}
+                                disabled={payingAppId === pendingApp.id || verifyingAppId === pendingApp.id}
+                                className="w-full sm:w-auto px-5 py-3.5 rounded-xl border border-red-300 bg-white hover:bg-red-50 text-red-700 font-bold text-xs shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                              >
+                                {verifyingAppId === pendingApp.id ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    Checking...
+                                  </>
+                                ) : (
+                                  <>
+                                    <RefreshCw className="w-4 h-4" />
+                                    Check Payment Status
+                                  </>
+                                )}
+                              </button>
+                            </div>
                           </div>
                         </div>
                       )}
