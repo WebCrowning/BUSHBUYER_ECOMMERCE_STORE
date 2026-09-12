@@ -449,6 +449,18 @@ export default function ApplyStorePage() {
                               fee is paid. Please complete payment to activate your submission.
                             </p>
 
+                            {/* No-Refund Policy Notice */}
+                            <div className="flex items-start gap-2.5 rounded-xl border border-orange-300 bg-orange-50 px-4 py-3 text-xs text-orange-800">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 flex-shrink-0 mt-0.5 text-orange-500" viewBox="0 0 24 24" fill="currentColor">
+                                <path fillRule="evenodd" d="M9.401 3.003c1.155-2 4.043-2 5.197 0l7.355 12.748c1.154 2-.29 4.5-2.599 4.5H4.645c-2.309 0-3.752-2.5-2.598-4.5L9.4 3.003ZM12 8.25a.75.75 0 0 1 .75.75v3.75a.75.75 0 0 1-1.5 0V9a.75.75 0 0 1 .75-.75Zm0 8.25a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Z" clipRule="evenodd" />
+                              </svg>
+                              <p>
+                                <strong className="font-bold text-orange-900">Non-Refundable Fee:</strong> The registration fee is{" "}
+                                <strong className="font-bold">strictly non-refundable</strong>, regardless of the outcome of your
+                                application. By proceeding with payment, you acknowledge and agree to this policy.
+                              </p>
+                            </div>
+
                             <div className="flex flex-col sm:flex-row items-center gap-3">
                               <button
                                 type="button"
