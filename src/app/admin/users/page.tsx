@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { Lock, Unlock, Loader, Trash2 } from "lucide-react";
+import { Lock, Unlock, Loader, Trash2, Search, X, Users, RefreshCw } from "lucide-react";
 
 interface User {
   id: number;
@@ -31,7 +31,10 @@ export default function UsersManagementPage() {
   const { data: session } = useSession();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "active" | "blocked">("all");
+  const [searchInput, setSearchInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState<PaginationData | null>(null);
   const [blockingUserId, setBlockingUserId] = useState<number | null>(null);
@@ -41,9 +44,18 @@ export default function UsersManagementPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  // Debounce search input by 300ms
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchQuery(searchInput);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
   useEffect(() => {
     fetchUsers();
-  }, [filter, page]);
+  }, [filter, page, searchQuery]);
 
   async function fetchUsers() {
     setLoading(true);
@@ -52,7 +64,11 @@ export default function UsersManagementPage() {
       if (filter === "active") blockedParam = "&blocked=false";
       else if (filter === "blocked") blockedParam = "&blocked=true";
 
-      const res = await fetch(`/api/admin/users?page=${page}&limit=20${blockedParam}`);
+      const queryParam = searchQuery.trim()
+        ? `&q=${encodeURIComponent(searchQuery.trim())}`
+        : "";
+
+      const res = await fetch(`/api/admin/users?page=${page}&limit=20${blockedParam}${queryParam}`);
       if (!res.ok) {
         const data = (await res.json()) as ApiResponse;
         throw new Error(data.error || "Failed to load users");
@@ -64,6 +80,7 @@ export default function UsersManagementPage() {
       setError(err instanceof Error ? err.message : "Failed to load users");
     } finally {
       setLoading(false);
+      setInitialLoading(false);
     }
   }
 
@@ -141,10 +158,10 @@ export default function UsersManagementPage() {
     }
   }
 
-  if (loading && users.length === 0) {
+  if (initialLoading) {
     return (
       <div className="min-h-screen bg-gray-50 p-8">
-        <div className="flex justify-center">
+        <div className="flex justify-center py-20">
           <Loader className="animate-spin text-gray-400" size={32} />
         </div>
       </div>
@@ -154,7 +171,14 @@ export default function UsersManagementPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">User Management</h1>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
+            <p className="text-sm text-gray-500 mt-1">
+              Search, filter, manage permissions, or block users across the platform.
+            </p>
+          </div>
+        </div>
 
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6 flex justify-between items-center">
@@ -169,46 +193,114 @@ export default function UsersManagementPage() {
           </div>
         )}
 
-        {/* Filter Tabs */}
-        <div className="mb-6 flex gap-3">
-          {(["all", "active", "blocked"] as const).map((f) => (
+        {/* Search Bar & Filter Controls */}
+        <div className="mb-6 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+          {/* Search Input */}
+          <div className="relative flex-1 max-w-lg">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            <input
+              type="text"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Search users by name, email, or user ID..."
+              className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-gray-300 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm transition-all"
+            />
+            {searchInput && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchInput("");
+                  setSearchQuery("");
+                  setPage(1);
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
+                title="Clear search"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          {/* Filter Tabs & Refresh */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {(["all", "active", "blocked"] as const).map((f) => (
+              <button
+                key={f}
+                onClick={() => {
+                  setFilter(f);
+                  setPage(1);
+                }}
+                className={`px-4 sm:px-5 py-2 rounded-xl text-sm font-semibold transition-all ${
+                  filter === f
+                    ? "bg-blue-600 text-white shadow-sm"
+                    : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                }`}
+              >
+                {f === "all"
+                  ? "All Users"
+                  : f === "active"
+                    ? "Active"
+                    : "Blocked"}
+              </button>
+            ))}
+
             <button
-              key={f}
-              onClick={() => {
-                setFilter(f);
-                setPage(1);
-              }}
-              className={`px-6 py-2 rounded-lg font-medium transition-colors ${
-                filter === f
-                  ? "bg-blue-600 text-white"
-                  : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
-              }`}
+              type="button"
+              onClick={() => fetchUsers()}
+              disabled={loading}
+              title="Refresh users"
+              className="p-2.5 bg-white border border-gray-300 rounded-xl text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors disabled:opacity-50"
             >
-              {f === "all"
-                ? "All Users"
-                : f === "active"
-                  ? "Active"
-                  : "Blocked"}
+              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin text-blue-600" : ""}`} />
             </button>
-          ))}
+          </div>
         </div>
 
         {/* Users List */}
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-900">
+        <div className="bg-white rounded-xl shadow-md border border-gray-200/80 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
               {filter === "all"
                 ? "All Users"
                 : filter === "active"
                   ? "Active Users"
                   : "Blocked Users"}{" "}
-              ({pagination?.total || 0})
+              <span className="text-gray-500 font-normal">({pagination?.total || 0})</span>
             </h2>
+            {searchQuery && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold px-3 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                  Search: &ldquo;{searchQuery}&rdquo;
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchInput("");
+                    setSearchQuery("");
+                    setPage(1);
+                  }}
+                  className="text-xs text-blue-600 hover:underline font-semibold"
+                >
+                  Clear filter
+                </button>
+              </div>
+            )}
           </div>
 
-          {users.length === 0 ? (
-            <div className="px-6 py-8 text-center text-gray-600">
-              No users found in this category.
+          {loading ? (
+            <div className="px-6 py-12 text-center text-gray-500 flex flex-col items-center justify-center gap-2">
+              <Loader className="w-6 h-6 animate-spin text-blue-600" />
+              <p className="text-sm">Searching users...</p>
+            </div>
+          ) : users.length === 0 ? (
+            <div className="px-6 py-12 text-center text-gray-600">
+              <Users className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+              <p className="font-semibold text-gray-700">No users found</p>
+              <p className="text-xs text-gray-500 mt-1">
+                {searchQuery
+                  ? `No user matches "${searchQuery}". Try searching by another name, email, or user ID.`
+                  : "No users found in this category."}
+              </p>
             </div>
           ) : (
             <div className="divide-y divide-gray-200">
