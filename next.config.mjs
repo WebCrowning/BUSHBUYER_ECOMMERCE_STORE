@@ -3,6 +3,7 @@ const contentSecurityPolicy = [
   "base-uri 'self'",
   "object-src 'none'",
   "frame-ancestors 'self'",
+  "worker-src 'self'",
   "img-src 'self' data: blob: https: https://*.tile.openstreetmap.org https://maps.gstatic.com https://maps.googleapis.com",
   "font-src 'self' data: https:",
   "style-src 'self' 'unsafe-inline' https://unpkg.com",
@@ -119,6 +120,44 @@ const nextConfig = {
           {
             key: "Cache-Control",
             value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+      // Cache PWA icons
+      {
+        source: "/icons/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+      // Service worker must NOT be cached — must always be fresh
+      {
+        source: "/sw.js",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "no-cache, no-store, must-revalidate",
+          },
+          {
+            key: "Service-Worker-Allowed",
+            value: "/",
+          },
+        ],
+      },
+      // Web manifest
+      {
+        source: "/site.webmanifest",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=3600",
+          },
+          {
+            key: "Content-Type",
+            value: "application/manifest+json",
           },
         ],
       },

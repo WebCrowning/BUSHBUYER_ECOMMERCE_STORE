@@ -5,6 +5,7 @@ import { WhatsAppFloatWrapper } from "@/components/whatsapp-float-wrapper";
 import { ChatbotProvider } from "@/components/chatbot-provider";
 import { CookiesPolicy } from "@/components/cookies-policy";
 import { TrafficTracker } from "@/components/traffic-tracker";
+import { PWAProvider } from "@/components/pwa-provider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -61,11 +62,25 @@ export const metadata: Metadata = {
     images: ["/images/og-image.jpg"],
   },
   icons: {
-    icon: "/favicon.ico",
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icons/icon-96x96.png", sizes: "96x96", type: "image/png" },
+      { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
+    ],
     shortcut: "/favicon.ico",
-    apple: "/images/logo.png",
+    apple: [
+      { url: "/icons/icon-180x180.png", sizes: "180x180", type: "image/png" },
+    ],
   },
   manifest: "/site.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Bushbuyer",
+  },
+  formatDetection: {
+    telephone: false,
+  },
   alternates: {
     canonical: "https://bushbuyer.com",
   },
@@ -84,8 +99,18 @@ export default function RootLayout({
     >
       <head>
         <meta charSet="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <meta name="theme-color" content="#1a3a2a" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="Bushbuyer" />
+        <meta name="application-name" content="Bushbuyer" />
+        <meta name="msapplication-TileColor" content="#1a3a2a" />
+        <meta name="msapplication-TileImage" content="/icons/icon-144x144.png" />
+        <link rel="apple-touch-icon" href="/icons/icon-180x180.png" />
+        <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-144x144.png" />
+        <link rel="mask-icon" href="/favicon.ico" color="#1a3a2a" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
@@ -96,6 +121,7 @@ export default function RootLayout({
           <WhatsAppFloatWrapper />
           <ChatbotProvider />
           <CookiesPolicy />
+          <PWAProvider />
         </AppProviders>
       </body>
     </html>
