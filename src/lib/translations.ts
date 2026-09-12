@@ -37,7 +37,7 @@ export const translations = {
     footer_copyright: "All rights reserved.",
 
     // ── Home Page ────────────────────────────────────────────────────────────
-    home_badge: "Multi-Vendor Marketplace",
+    home_badge: "Welcome To Multi-Vendor Marketplace",
     home_hero_title_1: "Every store, every product,",
     home_hero_title_2: "one trusted marketplace.",
     home_hero_desc: "Discover verified stores selling electronics, fashion, food, and more — all with quality-checked listings, secure checkout, and fast delivery to your door.",
@@ -325,7 +325,7 @@ export const translations = {
     footer_copyright: "Tous droits réservés.",
 
     // ── Home Page ────────────────────────────────────────────────────────────
-    home_badge: "Marché Multi-Vendeurs",
+    home_badge: "Bienvenue sur le Marché Multi-Vendeurs",
     home_hero_title_1: "Chaque boutique, chaque produit,",
     home_hero_title_2: "un marché de confiance.",
     home_hero_desc: "Découvrez des boutiques vérifiées vendant de l'électronique, de la mode, de la nourriture et plus encore — avec des annonces vérifiées, un paiement sécurisé et une livraison rapide à votre porte.",
