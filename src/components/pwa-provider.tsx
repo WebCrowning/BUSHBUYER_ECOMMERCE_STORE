@@ -134,7 +134,7 @@ export function PWAProvider() {
               }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/icons/icon-72x72.png" alt="Bushbuyer" width={28} height={28} style={{ borderRadius: "0.5rem" }} />
+              <img src="/images/logo.png" alt="Bushbuyer" width={28} height={28} style={{ borderRadius: "0.5rem", objectFit: "contain" }} />
             </div>
 
             {/* Text */}
