@@ -11,14 +11,13 @@ import {
   RefreshCw,
   CheckCircle2,
   AlertCircle,
-  Calculator,
-  ShieldAlert,
   Percent,
   DollarSign,
   ArrowUpRight,
   Settings2,
   Lock,
   Zap,
+  ShieldCheck,
 } from "lucide-react";
 
 interface WithdrawalSettings {
@@ -58,10 +57,7 @@ export default function FeesAndChargesPage() {
   const [withdrawalError, setWithdrawalError] = useState("");
   const [updateReason, setUpdateReason] = useState("");
 
-  // Live Calculator State
-  const [calcAmount, setCalcAmount] = useState<number>(50000);
-
-  // Load Store Registration Fee
+  // Load Store Registration Fee from live database
   const loadRegFee = async () => {
     try {
       setLoadingRegFee(true);
@@ -82,7 +78,7 @@ export default function FeesAndChargesPage() {
     }
   };
 
-  // Load Withdrawal Settings
+  // Load Withdrawal Settings from live database
   const loadWithdrawalSettings = async () => {
     try {
       setLoadingWithdrawal(true);
@@ -108,7 +104,7 @@ export default function FeesAndChargesPage() {
     loadWithdrawalSettings();
   }, []);
 
-  // Save Store Registration Fee
+  // Save Store Registration Fee to live database
   const handleSaveRegFee = async (e: React.FormEvent) => {
     e.preventDefault();
     setRegFeeSuccess("");
@@ -134,7 +130,7 @@ export default function FeesAndChargesPage() {
       }
       setRegFee(data.fee_cfa);
       setRegFeeInput(String(data.fee_cfa));
-      setRegFeeSuccess(`Store registration fee updated to ${data.fee_cfa.toLocaleString()} CFA!`);
+      setRegFeeSuccess(`Live store registration fee updated to ${data.fee_cfa.toLocaleString()} CFA!`);
     } catch {
       setRegFeeError("Unexpected error while saving fee.");
     } finally {
@@ -142,7 +138,7 @@ export default function FeesAndChargesPage() {
     }
   };
 
-  // Save Withdrawal Settings
+  // Save Withdrawal Settings to live database
   const handleSaveWithdrawal = async (e: React.FormEvent) => {
     e.preventDefault();
     setWithdrawalSuccess("");
@@ -160,7 +156,7 @@ export default function FeesAndChargesPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...withdrawalSettings,
-          reason: updateReason || "Updated from Admin Fees & Charges dashboard",
+          reason: updateReason || "Live fee update from Admin Fees & Charges dashboard",
         }),
       });
       const data = await res.json();
@@ -169,7 +165,7 @@ export default function FeesAndChargesPage() {
         return;
       }
       setWithdrawalSettings(data.settings);
-      setWithdrawalSuccess("Store owner withdrawal charges & limits updated successfully!");
+      setWithdrawalSuccess("Live store owner withdrawal charges & limits updated successfully!");
       setUpdateReason("");
     } catch {
       setWithdrawalError("Unexpected error while saving withdrawal settings.");
@@ -177,13 +173,6 @@ export default function FeesAndChargesPage() {
       setSavingWithdrawal(false);
     }
   };
-
-  // Calculate live preview
-  const calcFixedFee = Number(withdrawalSettings.withdrawal_fee_fixed) || 0;
-  const calcPctFee =
-    (calcAmount * (Number(withdrawalSettings.withdrawal_fee_percentage) || 0)) / 100;
-  const calcTotalFee = Math.round(calcFixedFee + calcPctFee);
-  const calcNetAmount = Math.max(0, calcAmount - calcTotalFee);
 
   return (
     <div className="space-y-8">
@@ -197,7 +186,7 @@ export default function FeesAndChargesPage() {
             </h1>
           </div>
           <p className="text-slate-400 text-xs md:text-sm mt-1">
-            Manage the store creation registration fee and vendor withdrawal charges from a unified control panel.
+            Configure live store creation fees and seller withdrawal charges. All changes are written directly to the database and apply live.
           </p>
         </div>
 
@@ -212,7 +201,7 @@ export default function FeesAndChargesPage() {
             <RefreshCw
               className={`w-3.5 h-3.5 ${loadingRegFee || loadingWithdrawal ? "animate-spin" : ""}`}
             />
-            Refresh All
+            Refresh Live Settings
           </button>
         </div>
       </div>
@@ -230,11 +219,11 @@ export default function FeesAndChargesPage() {
               <div className="flex items-center gap-2">
                 <h2 className="text-xl font-bold text-white">Store Creation Registration Fee</h2>
                 <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-extrabold uppercase">
-                  Vendor Onboarding
+                  Live Vendor Onboarding
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
-                The one-time fee vendors must pay via MTN/Orange Mobile Money before their application is submitted for admin review.
+                The one-time registration fee vendors pay via MTN / Orange Mobile Money when applying for a store.
               </p>
             </div>
           </div>
@@ -244,7 +233,7 @@ export default function FeesAndChargesPage() {
             target="_blank"
             className="inline-flex items-center gap-1 text-xs font-semibold text-brand hover:text-brand-light transition-colors self-start sm:self-auto"
           >
-            Preview Apply Page <ArrowUpRight className="w-3.5 h-3.5" />
+            Open Live Application Page <ArrowUpRight className="w-3.5 h-3.5" />
           </Link>
         </div>
 
@@ -263,11 +252,11 @@ export default function FeesAndChargesPage() {
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Current Fee Highlight Card */}
+          {/* Current Live Fee Card */}
           <div className="rounded-2xl border border-emerald-500/30 bg-emerald-950/20 p-6 flex flex-col justify-between">
             <div>
               <span className="text-[11px] uppercase tracking-wider font-bold text-emerald-400 flex items-center gap-1.5">
-                <DollarSign className="w-3.5 h-3.5" /> Current Registration Fee
+                <DollarSign className="w-3.5 h-3.5" /> Live Active Registration Fee
               </span>
               <div className="mt-3">
                 {loadingRegFee ? (
@@ -280,24 +269,24 @@ export default function FeesAndChargesPage() {
                 )}
               </div>
               <p className="text-xs text-slate-400 mt-2 leading-relaxed">
-                Advertised on the vendor application page and charged live through Fapshi.
+                Applied to all incoming store registration requests on the live website.
               </p>
             </div>
 
-            <div className="mt-6 pt-4 border-t border-emerald-500/20 text-[11px] text-slate-400 flex items-center gap-1.5">
-              <Zap className="w-3.5 h-3.5 text-emerald-400" />
-              Changes update immediately on the live store application form.
+            <div className="mt-6 pt-4 border-t border-emerald-500/20 text-[11px] text-emerald-300 flex items-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+              Connected directly to live Fapshi Mobile Money checkout.
             </div>
           </div>
 
-          {/* Update Fee Form */}
+          {/* Update Live Fee Form */}
           <form
             onSubmit={handleSaveRegFee}
             className="lg:col-span-2 rounded-2xl border border-slate-800 bg-slate-950/60 p-6 flex flex-col justify-between space-y-4"
           >
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">
-                Set New One-Time Store Registration Fee (CFA)
+                Update Store Registration Fee (CFA)
               </label>
               <div className="relative max-w-md">
                 <input
@@ -316,20 +305,20 @@ export default function FeesAndChargesPage() {
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-2">
-                Enter the exact amount in Central African CFA Francs (minimum 100 CFA).
+                Enter the exact amount in Central African CFA Francs (XAF).
               </p>
 
-              {/* Quick suggestion buttons */}
+              {/* Presets */}
               <div className="mt-4 flex flex-wrap items-center gap-2">
-                <span className="text-[11px] text-slate-500">Presets:</span>
+                <span className="text-[11px] text-slate-500 font-semibold">Quick Amounts:</span>
                 {[2500, 5000, 7500, 10000, 15000].map((preset) => (
                   <button
                     key={preset}
                     type="button"
                     onClick={() => setRegFeeInput(String(preset))}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all ${
+                    className={`px-3 py-1 rounded-lg text-xs font-semibold border transition-all ${
                       Number(regFeeInput) === preset
-                        ? "bg-brand/20 border-brand text-brand"
+                        ? "bg-brand/20 border-brand text-brand font-bold"
                         : "bg-slate-900 border-slate-800 text-slate-400 hover:text-white"
                     }`}
                   >
@@ -346,7 +335,7 @@ export default function FeesAndChargesPage() {
                 className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-950 transition-all active:scale-95 disabled:opacity-50"
               >
                 <Save className="w-4 h-4" />
-                {savingRegFee ? "Saving..." : "Save Registration Fee"}
+                {savingRegFee ? "Saving to Database..." : "Save Live Registration Fee"}
               </button>
             </div>
           </form>
@@ -366,11 +355,11 @@ export default function FeesAndChargesPage() {
               <div className="flex items-center gap-2">
                 <h2 className="text-xl font-bold text-white">Store Owner Withdrawal Charges &amp; Limits</h2>
                 <span className="px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] font-extrabold uppercase">
-                  Payouts &amp; Wallets
+                  Live Payout Rules
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
-                Configure the fees deducted when a seller withdraws funds from their Bushbuyer wallet to MTN MoMo, Orange Money, or Bank.
+                Configure live fees deducted when sellers withdraw funds from their wallet to MTN MoMo, Orange Money, or Bank.
               </p>
             </div>
           </div>
@@ -379,7 +368,7 @@ export default function FeesAndChargesPage() {
             href="/admin/wallets"
             className="inline-flex items-center gap-1 text-xs font-semibold text-amber-400 hover:text-amber-300 transition-colors self-start sm:self-auto"
           >
-            View Wallets &amp; Payouts <ArrowRight className="w-3.5 h-3.5" />
+            Manage Seller Wallets &amp; Payouts <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
 
@@ -425,14 +414,14 @@ export default function FeesAndChargesPage() {
                 </span>
               </div>
               <p className="text-[11px] text-slate-500">
-                Flat fee deducted regardless of withdrawal size (e.g. 100 CFA).
+                Flat fee deducted from each withdrawal request (e.g. 100 CFA).
               </p>
             </div>
 
             {/* Percentage Fee */}
             <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-5 space-y-2">
               <label className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                <Percent className="w-3.5 h-3.5 text-brand" /> Percentage Fee (%)
+                <Percent className="w-3.5 h-3.5 text-brand" /> Percentage Charge (%)
               </label>
               <div className="relative">
                 <input
@@ -455,7 +444,7 @@ export default function FeesAndChargesPage() {
                 </span>
               </div>
               <p className="text-[11px] text-slate-500">
-                Percentage deducted from requested amount (e.g. 1.5% or 2%).
+                Percentage deducted from the payout amount (e.g. 1.5% or 2%).
               </p>
             </div>
 
@@ -483,7 +472,7 @@ export default function FeesAndChargesPage() {
                   CFA
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500">Lowest amount a seller can withdraw.</p>
+              <p className="text-[11px] text-slate-500">Minimum balance a seller must withdraw.</p>
             </div>
 
             {/* Maximum Withdrawal Amount */}
@@ -510,7 +499,7 @@ export default function FeesAndChargesPage() {
                   CFA
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500">Highest single withdrawal amount allowed.</p>
+              <p className="text-[11px] text-slate-500">Maximum allowed per single request.</p>
             </div>
           </div>
 
@@ -538,7 +527,7 @@ export default function FeesAndChargesPage() {
                       : "text-slate-400 hover:text-white"
                   }`}
                 >
-                  <Lock className="w-3.5 h-3.5 inline mr-1" /> MANUAL (Recommended)
+                  <Lock className="w-3.5 h-3.5 inline mr-1" /> MANUAL (Admin Review)
                 </button>
                 <button
                   type="button"
@@ -551,12 +540,12 @@ export default function FeesAndChargesPage() {
                       : "text-slate-400 hover:text-white"
                   }`}
                 >
-                  <Zap className="w-3.5 h-3.5 inline mr-1" /> AUTOMATIC
+                  <Zap className="w-3.5 h-3.5 inline mr-1" /> AUTOMATIC (Instant Payout)
                 </button>
               </div>
             </div>
 
-            {/* Auto Mode Limits (conditionally highlighted) */}
+            {/* Auto Mode Limits (conditionally displayed) */}
             {withdrawalSettings.withdrawal_mode === "AUTO" && (
               <div className="mt-4 pt-4 border-t border-slate-800 grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
@@ -616,76 +605,35 @@ export default function FeesAndChargesPage() {
             )}
           </div>
 
-          {/* ─────────────────────────────────────────────────────────────
-              INTERACTIVE LIVE FEE CALCULATOR PREVIEW
-             ───────────────────────────────────────────────────────────── */}
-          <div className="rounded-2xl border border-brand/30 bg-brand/5 p-6 space-y-4">
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-brand flex items-center gap-1.5">
-                <Calculator className="w-4 h-4" /> Live Fee Simulation Calculator
-              </span>
-              <span className="text-xs text-slate-400">
-                Test how your fees apply to a seller payout
-              </span>
-            </div>
-
-            <div className="flex flex-col sm:flex-row items-center gap-4">
-              <div className="w-full sm:w-64">
-                <label className="text-[11px] text-slate-400 block mb-1 font-semibold">
-                  Sample Withdrawal Amount:
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    step="5000"
-                    min="1000"
-                    value={calcAmount}
-                    onChange={(e) => setCalcAmount(Math.max(0, Number(e.target.value)))}
-                    className="w-full rounded-xl border border-slate-800 bg-slate-900 px-3.5 py-2 text-sm font-bold text-white focus:outline-none focus:border-brand"
-                  />
-                  <span className="absolute right-3 top-2 text-xs font-bold text-slate-500">
-                    CFA
-                  </span>
-                </div>
+          {/* Active Live Policy Summary Card */}
+          <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-5">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-300 block mb-3">
+              Active Live Policy Summary
+            </span>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+              <div>
+                <span className="text-slate-500 block">Fixed Deduction</span>
+                <strong className="text-white text-sm">
+                  {Number(withdrawalSettings.withdrawal_fee_fixed || 0).toLocaleString()} CFA
+                </strong>
               </div>
-
-              {/* Live breakdown badges */}
-              <div className="flex-1 w-full grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="bg-slate-900/90 p-3 rounded-xl border border-slate-800">
-                  <span className="text-[10px] text-slate-400 block uppercase font-bold">
-                    Fixed Fee
-                  </span>
-                  <span className="text-sm font-black text-slate-200">
-                    {calcFixedFee.toLocaleString()} CFA
-                  </span>
-                </div>
-
-                <div className="bg-slate-900/90 p-3 rounded-xl border border-slate-800">
-                  <span className="text-[10px] text-slate-400 block uppercase font-bold">
-                    Percentage ({withdrawalSettings.withdrawal_fee_percentage}%)
-                  </span>
-                  <span className="text-sm font-black text-slate-200">
-                    {Math.round(calcPctFee).toLocaleString()} CFA
-                  </span>
-                </div>
-
-                <div className="bg-red-950/30 p-3 rounded-xl border border-red-500/30">
-                  <span className="text-[10px] text-red-400 block uppercase font-bold">
-                    Platform Earns
-                  </span>
-                  <span className="text-sm font-black text-red-400">
-                    {calcTotalFee.toLocaleString()} CFA
-                  </span>
-                </div>
-
-                <div className="bg-emerald-950/30 p-3 rounded-xl border border-emerald-500/30">
-                  <span className="text-[10px] text-emerald-400 block uppercase font-bold">
-                    Vendor Receives
-                  </span>
-                  <span className="text-sm font-black text-emerald-400">
-                    {calcNetAmount.toLocaleString()} CFA
-                  </span>
-                </div>
+              <div>
+                <span className="text-slate-500 block">Percentage Deduction</span>
+                <strong className="text-white text-sm">
+                  {withdrawalSettings.withdrawal_fee_percentage}%
+                </strong>
+              </div>
+              <div>
+                <span className="text-slate-500 block">Allowed Range</span>
+                <strong className="text-white text-sm">
+                  {Number(withdrawalSettings.min_withdrawal_amount || 0).toLocaleString()} – {Number(withdrawalSettings.max_withdrawal_amount || 0).toLocaleString()} CFA
+                </strong>
+              </div>
+              <div>
+                <span className="text-slate-500 block">Mode</span>
+                <strong className={`text-sm ${withdrawalSettings.withdrawal_mode === "AUTO" ? "text-emerald-400" : "text-amber-400"}`}>
+                  {withdrawalSettings.withdrawal_mode === "AUTO" ? "Automatic Payouts" : "Manual Admin Review"}
+                </strong>
               </div>
             </div>
           </div>
@@ -696,7 +644,7 @@ export default function FeesAndChargesPage() {
               type="text"
               value={updateReason}
               onChange={(e) => setUpdateReason(e.target.value)}
-              placeholder="Reason for change (optional, for audit trail)..."
+              placeholder="Reason for change (optional, for admin audit trail)..."
               className="w-full sm:max-w-md rounded-xl border border-slate-800 bg-slate-950 px-4 py-2 text-xs text-slate-300 focus:outline-none focus:border-brand"
             />
 
@@ -706,7 +654,7 @@ export default function FeesAndChargesPage() {
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs shadow-lg shadow-amber-950 transition-all active:scale-95 disabled:opacity-50"
             >
               <Save className="w-4 h-4" />
-              {savingWithdrawal ? "Saving..." : "Save Withdrawal Charges"}
+              {savingWithdrawal ? "Saving to Database..." : "Save Live Withdrawal Charges"}
             </button>
           </div>
         </form>
