@@ -13,6 +13,7 @@ import { StoreAttributor } from "@/components/store-attributor";
 import { ProductPriceDisplay } from "@/components/product-price-display";
 import { StoreLocationCard } from "@/components/store/store-location-card";
 import { StoreRepository } from "@/repositories/store.repository";
+import { ProductReviewsSection } from "@/components/reviews/product-reviews-section";
 import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
@@ -175,6 +176,13 @@ export default async function ProductDetailsPage({ params }: Props) {
             <StoreLocationCard store={store} variant="compact" />
           </div>
         )}
+
+        {/* Verified Customer Reviews Section */}
+        <ProductReviewsSection
+          productId={product.id}
+          productName={product.name}
+          productImage={product.image}
+        />
       </main>
       <SiteFooter />
     </div>

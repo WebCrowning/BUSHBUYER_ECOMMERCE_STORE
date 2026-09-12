@@ -10,6 +10,7 @@ import { notFound } from "next/navigation";
 import { StoreAttributor } from "@/components/store-attributor";
 import { StoreBannerHeader } from "@/components/store/store-banner-header";
 import { StoreLocationCard } from "@/components/store/store-location-card";
+import { StoreReviewsSection } from "@/components/reviews/store-reviews-section";
 import { query } from "@/lib/db";
 import { ShieldCheck, Star, MapPin, Phone, Mail, Clock, ShoppingBag, Users, Calendar, CircleHelp, Globe } from "lucide-react";
 
@@ -216,6 +217,14 @@ export default async function StoreProfilePage({ params }: { params: Promise<{ s
               </div>
             )}
           </div>
+
+          {/* Store Customer Reviews Section */}
+          <StoreReviewsSection
+            storeId={store.id}
+            storeName={store.name}
+            initialRatingAvg={Number(store.rating_avg) || 5.0}
+            initialRatingCount={Number(store.rating_count) || 0}
+          />
 
           {/* Store FAQ Section */}
           {faqs.length > 0 && (
