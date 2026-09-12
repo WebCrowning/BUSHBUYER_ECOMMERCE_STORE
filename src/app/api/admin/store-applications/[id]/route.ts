@@ -33,8 +33,8 @@ export async function PATCH(
     const body = await req.json();
     const { action, admin_notes } = body;
 
-    if (!["approve", "reject"].includes(action)) {
-      return NextResponse.json({ error: "Action must be 'approve' or 'reject'" }, { status: 400 });
+    if (!["approve", "reject", "reopen"].includes(action)) {
+      return NextResponse.json({ error: "Action must be 'approve', 'reject', or 'reopen'" }, { status: 400 });
     }
 
     // Fetch existing application
@@ -144,6 +144,27 @@ export async function PATCH(
       return NextResponse.json({
         success: true,
         message: `Application for '${app.store_name}' rejected and user notified.`,
+      });
+    }
+
+    if (action === "reopen") {
+      const reopenNotes = admin_notes ? admin_notes.trim() : "Re-opened for review by administrator";
+      await query(
+        `UPDATE store_applications SET status = 'pending', admin_notes = ? WHERE id = ?`,
+        [reopenNotes, appId]
+      );
+
+      // Send Platform Notification to User
+      await createUserNotification(app.user_id, {
+        type: "store_application",
+        title: "Store Application Re-Opened for Review",
+        body: `Your store application for '${app.store_name}' has been re-opened for review by the admin team.`,
+        link: "/store/apply",
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: `Application for '${app.store_name}' has been re-opened for review.`,
       });
     }
 

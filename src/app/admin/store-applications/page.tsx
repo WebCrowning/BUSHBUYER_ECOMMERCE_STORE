@@ -19,6 +19,10 @@ import {
   Check,
   Settings,
   Coins,
+  RotateCcw,
+  Eye,
+  ShieldCheck,
+  CreditCard,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -52,6 +56,8 @@ export default function AdminStoreApplicationsPage() {
   // Modal states
   const [selectedApp, setSelectedApp] = useState<StoreApplicationItem | null>(null);
   const [rejectReason, setRejectReason] = useState("");
+  const [reviewApp, setReviewApp] = useState<StoreApplicationItem | null>(null);
+  const [reviewNotes, setReviewNotes] = useState("");
   const [processing, setProcessing] = useState(false);
   const [actionSuccess, setActionSuccess] = useState("");
   const [actionError, setActionError] = useState("");
@@ -110,9 +116,50 @@ export default function AdminStoreApplicationsPage() {
       }
 
       setActionSuccess(`Store '${app.store_name}' approved, created, and access granted to user!`);
+      setReviewApp(null);
       await loadApplications();
     } catch (err) {
       setActionError("Error executing approval action.");
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleReopen = async (app: StoreApplicationItem, customNotes?: string) => {
+    if (
+      !confirm(
+        `Move application for '${app.store_name}' back to Pending Review?\n\nThe applicant will receive a notification that their application is being reconsidered.`
+      )
+    ) {
+      return;
+    }
+
+    setProcessing(true);
+    setActionSuccess("");
+    setActionError("");
+
+    try {
+      const res = await fetch(`/api/admin/store-applications/${app.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "reopen",
+          admin_notes: customNotes || "Re-opened for review by administrator",
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setActionError(data.error || "Failed to re-open store application.");
+        return;
+      }
+
+      setActionSuccess(`Application for '${app.store_name}' has been re-opened and moved to Pending Review!`);
+      setReviewApp(null);
+      await loadApplications();
+    } catch (err) {
+      setActionError("Error re-opening application.");
     } finally {
       setProcessing(false);
     }
@@ -425,34 +472,87 @@ export default function AdminStoreApplicationsPage() {
                   </div>
 
                   {/* Actions Column */}
-                  <div className="flex flex-row lg:flex-col items-center justify-end gap-3 border-t lg:border-t-0 lg:border-l border-slate-800 pt-4 lg:pt-0 lg:pl-6">
+                  <div className="flex flex-row lg:flex-col items-stretch lg:items-end justify-end gap-2 border-t lg:border-t-0 lg:border-l border-slate-800 pt-4 lg:pt-0 lg:pl-6 shrink-0">
                     {app.status === "pending" ? (
                       <>
                         <button
                           onClick={() => handleApprove(app)}
                           disabled={processing}
-                          className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-950 transition-all flex items-center justify-center gap-1.5 active:scale-95 disabled:opacity-50"
+                          className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-950 transition-all flex items-center justify-center gap-1.5 active:scale-95 disabled:opacity-50"
                         >
                           <Check className="w-4 h-4" />
-                          Create Store & Grant Access
+                          Create Store
                         </button>
                         <button
                           onClick={() => setSelectedApp(app)}
                           disabled={processing}
-                          className="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-red-500/40 bg-red-950/30 hover:bg-red-900/50 text-red-300 font-semibold text-xs transition-all flex items-center justify-center gap-1.5"
+                          className="px-4 py-2 rounded-xl border border-red-500/40 bg-red-950/30 hover:bg-red-900/50 text-red-300 font-semibold text-xs transition-all flex items-center justify-center gap-1.5"
                         >
                           <X className="w-4 h-4" />
-                          Reject Request
+                          Reject
+                        </button>
+                        <button
+                          onClick={() => {
+                            setReviewApp(app);
+                            setReviewNotes(app.admin_notes || "");
+                          }}
+                          className="px-3.5 py-2 rounded-xl border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 font-semibold text-xs transition-all flex items-center justify-center gap-1.5"
+                        >
+                          <Eye className="w-3.5 h-3.5 text-slate-400" />
+                          Review Details
                         </button>
                       </>
                     ) : app.status === "approved" ? (
-                      <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-400 bg-emerald-950/50 px-4 py-2 rounded-xl border border-emerald-500/20">
-                        <CheckCircle className="w-4 h-4" /> Store Active
-                      </span>
+                      <>
+                        <span className="inline-flex items-center justify-center gap-1 text-xs font-bold text-emerald-400 bg-emerald-950/50 px-3.5 py-1.5 rounded-xl border border-emerald-500/20">
+                          <CheckCircle className="w-4 h-4" /> Store Active
+                        </span>
+                        <button
+                          onClick={() => {
+                            setReviewApp(app);
+                            setReviewNotes(app.admin_notes || "");
+                          }}
+                          className="px-3.5 py-1.5 rounded-xl border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-300 font-medium text-xs transition-all flex items-center justify-center gap-1.5"
+                        >
+                          <Eye className="w-3.5 h-3.5 text-slate-400" />
+                          View Details
+                        </button>
+                      </>
                     ) : (
-                      <span className="inline-flex items-center gap-1 text-xs font-bold text-red-400 bg-red-950/50 px-4 py-2 rounded-xl border border-red-500/20">
-                        <XCircle className="w-4 h-4" /> Request Rejected
-                      </span>
+                      <>
+                        <div className="flex items-center gap-1.5 justify-end">
+                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-red-400 bg-red-950/50 px-2.5 py-1 rounded-lg border border-red-500/20">
+                            <XCircle className="w-3 h-3" /> Rejected
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setReviewApp(app);
+                            setReviewNotes(app.admin_notes || "");
+                          }}
+                          className="px-3.5 py-2 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs transition-all flex items-center justify-center gap-1.5 active:scale-95"
+                        >
+                          <Eye className="w-3.5 h-3.5 text-brand" />
+                          Review Application
+                        </button>
+                        <button
+                          onClick={() => handleReopen(app)}
+                          disabled={processing}
+                          className="px-3.5 py-2 rounded-xl border border-amber-500/40 bg-amber-950/30 hover:bg-amber-900/50 text-amber-300 font-bold text-xs transition-all flex items-center justify-center gap-1.5 active:scale-95 disabled:opacity-50"
+                          title="Move back to Pending Review so applicant can be reconsidered"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          Re-open for Review
+                        </button>
+                        <button
+                          onClick={() => handleApprove(app)}
+                          disabled={processing}
+                          className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-1.5 active:scale-95 disabled:opacity-50"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                          Approve Store
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -511,6 +611,186 @@ export default function AdminStoreApplicationsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Full Review Details Modal */}
+      {reviewApp && (
+        <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-3xl p-6 md:p-8 shadow-2xl space-y-6 my-8">
+            {/* Modal Header */}
+            <div className="flex items-start justify-between border-b border-slate-800 pb-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Store className="w-6 h-6 text-brand" />
+                  <h3 className="text-xl font-bold text-white">
+                    {reviewApp.store_name}
+                  </h3>
+                  <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 font-semibold">
+                    {reviewApp.business_category}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 mt-1">
+                  Application #{reviewApp.id} · Submitted {new Date(reviewApp.created_at).toLocaleString()}
+                </p>
+              </div>
+
+              <button
+                onClick={() => setReviewApp(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Status & Fee Overview */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between">
+                <span className="text-xs font-semibold text-slate-400">Current Status</span>
+                <span
+                  className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
+                    reviewApp.status === "pending"
+                      ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                      : reviewApp.status === "approved"
+                      ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                      : "bg-red-500/20 text-red-400 border border-red-500/30"
+                  }`}
+                >
+                  {reviewApp.status === "pending" && <Clock className="w-3.5 h-3.5" />}
+                  {reviewApp.status === "approved" && <CheckCircle className="w-3.5 h-3.5" />}
+                  {reviewApp.status === "rejected" && <XCircle className="w-3.5 h-3.5" />}
+                  {reviewApp.status}
+                </span>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between">
+                <span className="text-xs font-semibold text-slate-400">Creation Fee (5,000 CFA)</span>
+                {reviewApp.payment_status === "paid" ? (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                    <ShieldCheck className="w-3.5 h-3.5" /> Paid
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                    <Clock className="w-3.5 h-3.5" /> Pending Payment
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Applicant Information */}
+            <div className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-2 text-xs">
+              <h4 className="font-bold text-slate-300 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                <UserCheck className="w-4 h-4 text-brand" /> Applicant Contact Information
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-300 pt-1">
+                <div>
+                  <span className="text-slate-500">Name:</span>{" "}
+                  <strong className="text-white">{reviewApp.user_name}</strong>
+                </div>
+                <div>
+                  <span className="text-slate-500">User Email:</span> {reviewApp.user_email}
+                </div>
+                <div>
+                  <span className="text-slate-500">Store Contact:</span> {reviewApp.email || "Same as user"}
+                </div>
+                <div>
+                  <span className="text-slate-500">Phone:</span> {reviewApp.phone || "Not provided"}
+                </div>
+              </div>
+
+              {reviewApp.existing_store_count > 0 && (
+                <div className="mt-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[11px] flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  User already manages {reviewApp.existing_store_count} active store{reviewApp.existing_store_count > 1 ? "s" : ""} on the platform.
+                </div>
+              )}
+            </div>
+
+            {/* Proposed Products & Catalog */}
+            <div className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-2 text-xs">
+              <h4 className="font-bold text-slate-300 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                <FileText className="w-4 h-4 text-slate-400" /> Proposed Products / Inventory Description
+              </h4>
+              <p className="text-slate-200 leading-relaxed whitespace-pre-wrap pt-1">
+                {reviewApp.products_description}
+              </p>
+              {reviewApp.additional_notes && (
+                <div className="mt-2 pt-2 border-t border-slate-800 text-slate-400 italic">
+                  <strong>Applicant Notes:</strong> {reviewApp.additional_notes}
+                </div>
+              )}
+            </div>
+
+            {/* Admin Notes / Rejection Reason */}
+            {reviewApp.admin_notes && (
+              <div className="p-4 rounded-2xl bg-red-950/20 border border-red-500/30 space-y-1 text-xs text-red-200">
+                <h4 className="font-bold text-red-400 uppercase tracking-wider text-[11px]">
+                  Administrative Notes / Recorded Reason:
+                </h4>
+                <p className="leading-relaxed whitespace-pre-wrap">{reviewApp.admin_notes}</p>
+              </div>
+            )}
+
+            {/* Modal Actions */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => setReviewApp(null)}
+                className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-slate-700 bg-slate-800 text-slate-300 text-xs font-semibold hover:bg-slate-700 transition-colors"
+              >
+                Close
+              </button>
+
+              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
+                {reviewApp.status === "rejected" ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => handleReopen(reviewApp)}
+                      disabled={processing}
+                      className="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-amber-500/40 bg-amber-950/40 hover:bg-amber-900/60 text-amber-300 font-bold text-xs transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      Re-open for Review
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleApprove(reviewApp)}
+                      disabled={processing}
+                      className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      Approve &amp; Grant Store
+                    </button>
+                  </>
+                ) : reviewApp.status === "pending" ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedApp(reviewApp);
+                        setReviewApp(null);
+                      }}
+                      disabled={processing}
+                      className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-red-500/40 bg-red-950/30 hover:bg-red-900/50 text-red-300 font-bold text-xs transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                      Reject Request
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleApprove(reviewApp)}
+                      disabled={processing}
+                      className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      Create Store &amp; Grant Access
+                    </button>
+                  </>
+                ) : null}
+              </div>
+            </div>
           </div>
         </div>
       )}
