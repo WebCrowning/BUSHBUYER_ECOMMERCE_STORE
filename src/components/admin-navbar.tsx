@@ -27,6 +27,7 @@ import {
   CreditCard,
   Tag,
   ClipboardList,
+  Coins,
   type LucideIcon,
 } from "lucide-react";
 
@@ -35,6 +36,7 @@ const allAdminNavItems = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard, superOnly: false },
   { href: "/admin/stores", label: "Stores", icon: Store, superOnly: true },
   { href: "/admin/store-applications", label: "Store Applications", icon: ClipboardList, superOnly: true },
+  { href: "/admin/fees", label: "Fees & Charges", icon: Coins, superOnly: true },
   { href: "/admin/products", label: "Products", icon: Package, superOnly: false },
   { href: "/admin/categories", label: "Categories", icon: Tag, superOnly: true },
   { href: "/admin/inventory", label: "Inventory", icon: Boxes, superOnly: false },

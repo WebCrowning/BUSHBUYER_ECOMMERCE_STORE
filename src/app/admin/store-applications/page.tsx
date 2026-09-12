@@ -18,6 +18,7 @@ import {
   X,
   Check,
   Settings,
+  Coins,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -185,11 +186,11 @@ export default function AdminStoreApplicationsPage() {
 
             <div className="flex items-center gap-3">
               <Link
-                href="/admin/store-applications/settings"
+                href="/admin/fees"
                 className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-brand/40 bg-brand/10 text-brand text-xs font-semibold hover:bg-brand/20 transition-colors"
               >
-                <Settings className="w-3.5 h-3.5" />
-                Registration Settings
+                <Coins className="w-3.5 h-3.5" />
+                Fees &amp; Charges
               </Link>
               <Link
                 href="/admin/stores"
