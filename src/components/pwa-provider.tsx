@@ -126,15 +126,16 @@ export function PWAProvider() {
                 width: 44,
                 height: 44,
                 borderRadius: "0.875rem",
-                background: "rgba(74,222,128,0.12)",
+                background: "#ffffff",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                border: "1px solid rgba(74,222,128,0.2)",
+                border: "1px solid rgba(255,255,255,0.15)",
+                overflow: "hidden",
               }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/images/logo.png" alt="Bushbuyer" width={28} height={28} style={{ borderRadius: "0.5rem", objectFit: "contain" }} />
+              <img src="/images/logo.png" alt="Bushbuyer" width={36} height={36} style={{ objectFit: "contain" }} />
             </div>
 
             {/* Text */}
