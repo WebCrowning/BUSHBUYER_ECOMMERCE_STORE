@@ -9,6 +9,7 @@ export function PWAProvider() {
   const [showInstallBanner, setShowInstallBanner] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
   const [showOfflineToast, setShowOfflineToast] = useState(false);
+  const [showOnlineToast, setShowOnlineToast] = useState(false);
 
   useEffect(() => {
     // Register service worker
@@ -54,9 +55,13 @@ export function PWAProvider() {
     const handleOnline = () => {
       setIsOnline(true);
       setShowOfflineToast(false);
+      // Show "Back online" toast briefly, then auto-hide
+      setShowOnlineToast(true);
+      setTimeout(() => setShowOnlineToast(false), 3000);
     };
     const handleOffline = () => {
       setIsOnline(false);
+      setShowOnlineToast(false);
       setShowOfflineToast(true);
     };
 
@@ -218,8 +223,10 @@ export function PWAProvider() {
       )}
 
       {/* ── Back Online Toast ─────────────────────────────────────────── */}
-      {!isOnline === false && showOfflineToast === false && (
+      {showOnlineToast && (
         <div
+          role="status"
+          aria-live="polite"
           style={{
             position: "fixed",
             top: "4.5rem",
@@ -236,6 +243,8 @@ export function PWAProvider() {
             fontSize: "0.8rem",
             fontWeight: 600,
             boxShadow: "0 4px 20px rgba(0,0,0,0.3)",
+            border: "1px solid rgba(74,222,128,0.2)",
+            animation: "slideDown 0.3s ease",
           }}
         >
           <Wifi size={14} />
