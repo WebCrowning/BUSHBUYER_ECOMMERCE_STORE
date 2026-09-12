@@ -22,6 +22,7 @@ import {
   Loader2,
   ShieldCheck,
   Zap,
+  AlertTriangle,
 } from "lucide-react";
 import { CAMEROON_MARKET_CATEGORIES } from "@/lib/cameroon-locations";
 
@@ -49,6 +50,10 @@ export default function ApplyStorePage() {
   const [applications, setApplications] = useState<StoreApplication[]>([]);
   const [loadingApps, setLoadingApps] = useState(true);
 
+  // Dynamic registration fee fetched from platform settings
+  const [registrationFee, setRegistrationFee] = useState<number>(5000);
+  const [loadingFee, setLoadingFee] = useState(true);
+
   // Form State
   const [storeName, setStoreName] = useState("");
   const [category, setCategory] = useState("Electronics & Computing");
@@ -62,6 +67,19 @@ export default function ApplyStorePage() {
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
   const [showFormOverride, setShowFormOverride] = useState(false);
+
+  // Fetch current registration fee (public endpoint, no auth needed)
+  useEffect(() => {
+    fetch("/api/registration-fee")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.fee_cfa && Number.isFinite(d.fee_cfa) && d.fee_cfa > 0) {
+          setRegistrationFee(d.fee_cfa);
+        }
+      })
+      .catch(() => {/* silently keep the 5000 default */})
+      .finally(() => setLoadingFee(false));
+  }, []);
 
   useEffect(() => {
     if (session?.user?.email) {
@@ -130,7 +148,9 @@ export default function ApplyStorePage() {
         return;
       }
 
-      setSuccessMsg("Store application created! Please proceed to pay the 5,000 CFA one-time registration fee below to complete submission.");
+      setSuccessMsg(
+        `Application created! You must now pay the ${registrationFee.toLocaleString()} CFA one-time registration fee below to complete your submission.`
+      );
       setStoreName("");
       setProductsDesc("");
       setNotes("");
@@ -156,7 +176,7 @@ export default function ApplyStorePage() {
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || "Failed to process 5,000 CFA payment");
+        throw new Error(data.error || "Failed to process payment");
       }
 
       if (data.paymentUrl) {
@@ -164,7 +184,9 @@ export default function ApplyStorePage() {
         return;
       }
 
-      setSuccessMsg("5,000 CFA Registration Fee paid successfully! Your application is now under admin review.");
+      setSuccessMsg(
+        `Registration Fee of ${registrationFee.toLocaleString()} CFA paid successfully! Your application is now under admin review.`
+      );
       await loadApplications();
     } catch (err: any) {
       setErrorMsg(err.message || "Payment failed. Please try again.");
@@ -175,7 +197,12 @@ export default function ApplyStorePage() {
 
   const pendingApp = applications.find((a) => a.status === "pending");
   const approvedApp = applications.find((a) => a.status === "approved");
-  const latestApp = applications[0];
+
+  // The effective fee for a specific app uses its snapshotted fee, or the current platform fee
+  const getAppFee = (app: StoreApplication) =>
+    app.application_fee_cfa && app.application_fee_cfa > 0
+      ? app.application_fee_cfa
+      : registrationFee;
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-brand/5 to-transparent text-foreground">
@@ -187,13 +214,14 @@ export default function ApplyStorePage() {
           <div className="text-center mb-10">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold uppercase tracking-wider mb-4">
               <Sparkles className="w-4 h-4" />
-              Vendor Registration & Cameroon Marketplace
+              Vendor Registration &amp; Cameroon Marketplace
             </div>
             <h1 className="text-3xl md:text-5xl font-black text-brand-deep tracking-tight">
               Open Your Store on Bushbuyer
             </h1>
             <p className="mt-4 text-foreground/60 text-base md:text-lg max-w-xl mx-auto">
-              Join Cameroon&apos;s fastest growing multi-vendor marketplace. Set up your store, turn on GPS location, and reach buyers across Douala, Yaoundé, Buea, Bamenda and beyond.
+              Join Cameroon&apos;s fastest growing multi-vendor marketplace. Set up your store,
+              turn on GPS location, and reach buyers across Douala, Yaoundé, Buea, Bamenda and beyond.
             </p>
           </div>
 
@@ -202,11 +230,18 @@ export default function ApplyStorePage() {
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 relative z-10">
               <div className="space-y-2">
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-bold uppercase tracking-wider">
-                  <Zap size={13} /> One-Time Application Fee
+                  <Zap size={13} /> One-Time Registration Fee
                 </div>
-                <h2 className="text-2xl sm:text-3xl font-extrabold">5,000 CFA One-Time Fee</h2>
+                <h2 className="text-2xl sm:text-3xl font-extrabold">
+                  {loadingFee ? (
+                    <span className="inline-block w-32 h-8 bg-white/10 rounded-lg animate-pulse" />
+                  ) : (
+                    `${registrationFee.toLocaleString()} CFA One-Time Fee`
+                  )}
+                </h2>
                 <p className="text-xs sm:text-sm text-emerald-100/80 max-w-md leading-relaxed">
-                  Includes full seller dashboard access, live store GPS location tagging, unlimited product catalog, customer direct chat, and order fulfillment.
+                  Includes full seller dashboard access, live store GPS location tagging,
+                  unlimited product catalog, customer direct chat, and order fulfillment.
                 </p>
               </div>
 
@@ -258,13 +293,12 @@ export default function ApplyStorePage() {
                     </div>
                     <div className="flex-1">
                       <div className="inline-block px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-700 text-xs font-bold uppercase tracking-wider mb-2">
-                        Store Approved & Active
+                        Store Approved &amp; Active
                       </div>
-                      <h2 className="text-2xl font-bold text-brand-deep">
-                        {approvedApp.store_name}
-                      </h2>
+                      <h2 className="text-2xl font-bold text-brand-deep">{approvedApp.store_name}</h2>
                       <p className="text-foreground/70 mt-2 text-sm">
-                        Your store application has been approved! You can now manage products, set up GPS coordinates, and process orders in your seller portal.
+                        Your store application has been approved! You can now manage products, set up
+                        GPS coordinates, and process orders in your seller portal.
                       </p>
                       <div className="mt-6 flex flex-wrap gap-4">
                         <Link
@@ -301,59 +335,82 @@ export default function ApplyStorePage() {
 
                         {pendingApp.payment_status === "paid" ? (
                           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold border border-emerald-300">
-                            <CheckCircle size={13} /> 5,000 CFA Fee Paid
+                            <CheckCircle size={13} /> {getAppFee(pendingApp).toLocaleString()} CFA Fee Paid
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-100 text-red-800 text-xs font-bold border border-red-300">
-                            <Clock size={13} /> 5,000 CFA Payment Required
+                            <AlertTriangle size={13} /> Payment Required to Continue
                           </span>
                         )}
                       </div>
 
-                      <h2 className="text-2xl font-bold text-brand-deep">
-                        {pendingApp.store_name}
-                      </h2>
+                      <h2 className="text-2xl font-bold text-brand-deep">{pendingApp.store_name}</h2>
                       <p className="text-foreground/70 mt-2 text-sm">
                         Submitted on{" "}
                         <span className="font-semibold text-foreground">
                           {new Date(pendingApp.created_at).toLocaleDateString()}
                         </span>
-                        . Our administrative team reviews submissions within 24-48 business hours.
+                        . Our administrative team reviews submissions within 24–48 business hours.
                       </p>
 
-                      {/* Payment Step if not paid */}
+                      {/* ── MANDATORY Payment Step ── */}
                       {pendingApp.payment_status !== "paid" && (
-                        <div className="mt-5 p-5 rounded-2xl bg-white border border-amber-300 shadow-sm space-y-3">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <h4 className="font-bold text-sm text-gray-900">
-                                Complete One-Time 5,000 CFA Registration Fee
-                              </h4>
-                              <p className="text-xs text-gray-600 mt-0.5">
-                                Pay via MTN Mobile Money, Orange Money, or Credit Card.
-                              </p>
-                            </div>
-                            <span className="text-lg font-extrabold text-emerald-800">5,000 CFA</span>
+                        <div className="mt-5 rounded-2xl border-2 border-red-300 bg-red-50 overflow-hidden shadow-sm">
+                          {/* Warning Header */}
+                          <div className="flex items-center gap-2 bg-red-500 text-white px-5 py-3">
+                            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                            <p className="text-xs font-extrabold uppercase tracking-wide">
+                              Action Required — Payment Needed to Complete Submission
+                            </p>
                           </div>
+                          <div className="p-5 space-y-4">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <h4 className="font-bold text-sm text-gray-900">
+                                  One-Time Store Registration Fee
+                                </h4>
+                                <p className="text-xs text-gray-600 mt-0.5">
+                                  Pay securely via MTN Mobile Money, Orange Money, or Credit Card.
+                                </p>
+                              </div>
+                              <span className="text-2xl font-extrabold text-red-700">
+                                {getAppFee(pendingApp).toLocaleString()} CFA
+                              </span>
+                            </div>
 
-                          <button
-                            type="button"
-                            onClick={() => handlePayFee(pendingApp.id)}
-                            disabled={payingAppId === pendingApp.id}
-                            className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm py-3 shadow-md transition-all active:scale-95 disabled:opacity-50"
-                          >
-                            {payingAppId === pendingApp.id ? (
-                              <>
-                                <Loader2 className="w-4 h-4 animate-spin text-white" />
-                                Processing Payment...
-                              </>
-                            ) : (
-                              <>
-                                <CreditCard className="w-4 h-4" />
-                                Pay 5,000 CFA Fee via Mobile Money
-                              </>
-                            )}
-                          </button>
+                            <p className="text-xs text-red-700 font-semibold bg-red-100 rounded-xl px-4 py-2.5">
+                              ⚠ Your application will <strong>not be reviewed</strong> by the admin team until this
+                              fee is paid. Please complete payment to activate your submission.
+                            </p>
+
+                            <button
+                              type="button"
+                              id="pay-registration-fee-btn"
+                              onClick={() => handlePayFee(pendingApp.id)}
+                              disabled={payingAppId === pendingApp.id}
+                              className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-extrabold text-sm py-3.5 shadow-md shadow-red-800/30 transition-all active:scale-95 disabled:opacity-50"
+                            >
+                              {payingAppId === pendingApp.id ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                  Processing Payment...
+                                </>
+                              ) : (
+                                <>
+                                  <CreditCard className="w-4 h-4" />
+                                  Pay {getAppFee(pendingApp).toLocaleString()} CFA Registration Fee Now
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Paid — waiting for review */}
+                      {pendingApp.payment_status === "paid" && (
+                        <div className="mt-4 flex items-center gap-3 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold">
+                          <ShieldCheck className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+                          Payment confirmed. Your application is in the admin review queue — you&apos;ll be notified when a decision is made.
                         </div>
                       )}
 
@@ -430,7 +487,7 @@ export default function ApplyStorePage() {
                   {/* Products Description */}
                   <div>
                     <label className="block text-xs font-bold uppercase tracking-wider text-foreground/70 mb-2">
-                      Products Description & Brands Sold *
+                      Products Description &amp; Brands Sold *
                     </label>
                     <textarea
                       rows={3}
@@ -487,10 +544,16 @@ export default function ApplyStorePage() {
                     />
                   </div>
 
-                  {/* 5,000 CFA Fee Notice in Form */}
+                  {/* Dynamic Fee Notice in Form */}
                   <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-between text-xs text-emerald-900 font-semibold">
                     <span>One-time store registration fee:</span>
-                    <span className="font-extrabold text-sm text-emerald-800">5,000 CFA</span>
+                    {loadingFee ? (
+                      <span className="inline-block w-20 h-4 bg-emerald-200 rounded animate-pulse" />
+                    ) : (
+                      <span className="font-extrabold text-sm text-emerald-800">
+                        {registrationFee.toLocaleString()} CFA
+                      </span>
+                    )}
                   </div>
 
                   <button
@@ -505,7 +568,7 @@ export default function ApplyStorePage() {
                       </>
                     ) : (
                       <>
-                        Submit Store Application (5,000 CFA)
+                        Submit Store Application ({loadingFee ? "..." : `${registrationFee.toLocaleString()} CFA`})
                         <ArrowRight className="w-5 h-5" />
                       </>
                     )}

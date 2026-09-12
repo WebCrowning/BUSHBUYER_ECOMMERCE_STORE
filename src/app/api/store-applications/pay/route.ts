@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { query } from "@/lib/db";
 import { FapshiProvider } from "@/providers/fapshi.provider";
 import { createAdminNotification } from "@/lib/notifications";
+import { SettingsRepository } from "@/repositories/settings.repository";
 
 export async function POST(req: Request) {
   try {
@@ -38,12 +39,15 @@ export async function POST(req: Request) {
     if (app.payment_status === "paid") {
       return NextResponse.json({
         success: true,
-        message: "Application fee of 5,000 CFA is already paid.",
+        message: "Application fee is already paid.",
         payment_status: "paid",
       });
     }
 
-    const feeCfa = Number(app.application_fee_cfa || 5000);
+    // Use the snapshotted fee from the application row; fall back to the current platform setting
+    const snapshotFee = Number(app.application_fee_cfa);
+    const feeCfa = snapshotFee > 0 ? snapshotFee : await SettingsRepository.getRegistrationFee();
+
     const externalId = `STORE-APP-${app.id}-${Date.now()}`;
 
     // Direct confirmation (e.g. Test / Demo or manual confirmation)
@@ -60,14 +64,14 @@ export async function POST(req: Request) {
 
       await createAdminNotification({
         type: "store_application",
-        title: "Store Application Fee Paid (5,000 CFA)",
-        body: `Applicant for store '${app.store_name}' paid the 5,000 CFA one-time registration fee. Ready for review!`,
+        title: `Store Application Fee Paid (${feeCfa.toLocaleString()} CFA)`,
+        body: `Applicant for store '${app.store_name}' paid the ${feeCfa.toLocaleString()} CFA one-time registration fee. Ready for review!`,
         link: "/admin/store-applications",
       });
 
       return NextResponse.json({
         success: true,
-        message: "5,000 CFA store application fee paid successfully!",
+        message: `${feeCfa.toLocaleString()} CFA store application fee paid successfully!`,
         payment_status: "paid",
         payment_reference: externalId,
       });
@@ -80,7 +84,7 @@ export async function POST(req: Request) {
         email: session.user.email || "customer@bushbuyer.com",
         externalId,
         redirectUrl: `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/store/apply?appId=${app.id}&paid=1`,
-        message: `Bushbuyer Store Application Fee (5,000 CFA) for ${app.store_name}`,
+        message: `Bushbuyer Store Registration Fee (${feeCfa.toLocaleString()} CFA) for ${app.store_name}`,
       });
 
       await query(
@@ -113,14 +117,14 @@ export async function POST(req: Request) {
 
       await createAdminNotification({
         type: "store_application",
-        title: "Store Application Fee Paid (5,000 CFA)",
-        body: `Applicant for store '${app.store_name}' paid 5,000 CFA. Ready for review!`,
+        title: `Store Application Fee Paid (${feeCfa.toLocaleString()} CFA)`,
+        body: `Applicant for store '${app.store_name}' paid ${feeCfa.toLocaleString()} CFA. Ready for review!`,
         link: "/admin/store-applications",
       });
 
       return NextResponse.json({
         success: true,
-        message: "5,000 CFA store registration fee recorded successfully!",
+        message: `${feeCfa.toLocaleString()} CFA store registration fee recorded successfully!`,
         payment_status: "paid",
         payment_reference: externalId,
       });

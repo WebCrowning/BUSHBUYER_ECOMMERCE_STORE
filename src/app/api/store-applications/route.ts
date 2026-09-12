@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { query } from "@/lib/db";
 import { createAdminNotification } from "@/lib/notifications";
+import { SettingsRepository } from "@/repositories/settings.repository";
 
 export async function GET() {
   try {
@@ -65,10 +66,14 @@ export async function POST(req: Request) {
     );
     const existingStoreCount = existingStoresResult[0]?.cnt ?? 0;
 
+    // Snapshot the current platform registration fee so payment always uses
+    // the fee that was advertised when the vendor submitted their application.
+    const registrationFeeCfa = await SettingsRepository.getRegistrationFee();
+
     const res = await query<{ insertId: number }>(
       `INSERT INTO store_applications (
-        user_id, store_name, business_category, products_description, phone, email, additional_notes, status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')`,
+        user_id, store_name, business_category, products_description, phone, email, additional_notes, status, application_fee_cfa
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
       [
         userId,
         store_name.trim(),
@@ -77,6 +82,7 @@ export async function POST(req: Request) {
         phone ? phone.trim() : null,
         email ? email.trim() : userEmail,
         additional_notes ? additional_notes.trim() : null,
+        registrationFeeCfa,
       ]
     );
 

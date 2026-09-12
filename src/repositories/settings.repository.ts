@@ -75,4 +75,34 @@ export class SettingsRepository {
 
     return updated;
   }
+
+  // ─── Store Registration Fee ────────────────────────────────────────────────
+
+  /**
+   * Get the current store registration fee in CFA.
+   * Falls back to the default of 5,000 CFA.
+   */
+  static async getRegistrationFee(): Promise<number> {
+    const rows = await query<{ setting_key: string; setting_value: string }[]>(
+      "SELECT setting_value FROM system_settings WHERE setting_key = 'store_registration_fee_cfa' LIMIT 1"
+    );
+    const raw = (rows as any)[0]?.setting_value;
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 5000;
+  }
+
+  /**
+   * Update the store registration fee.
+   * @param feeCfa   New fee in CFA (positive integer).
+   * @param adminId  ID of the admin performing the change.
+   */
+  static async updateRegistrationFee(feeCfa: number, adminId: number): Promise<number> {
+    await query(
+      `INSERT INTO system_settings (setting_key, setting_value, updated_by)
+       VALUES ('store_registration_fee_cfa', ?, ?)
+       ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_by = VALUES(updated_by)`,
+      [String(Math.round(feeCfa)), adminId]
+    );
+    return Math.round(feeCfa);
+  }
 }

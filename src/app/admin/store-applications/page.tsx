@@ -17,6 +17,7 @@ import {
   AlertCircle,
   X,
   Check,
+  Settings,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -174,6 +175,13 @@ export default function AdminStoreApplicationsPage() {
             </div>
 
             <div className="flex items-center gap-3">
+              <Link
+                href="/admin/store-applications/settings"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-brand/40 bg-brand/10 text-brand text-xs font-semibold hover:bg-brand/20 transition-colors"
+              >
+                <Settings className="w-3.5 h-3.5" />
+                Registration Settings
+              </Link>
               <Link
                 href="/admin/stores"
                 className="px-4 py-2 rounded-xl border border-slate-700 bg-slate-900 text-slate-300 text-xs font-semibold hover:bg-slate-800 transition-colors"
